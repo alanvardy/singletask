@@ -1,6 +1,6 @@
-# Tod-Web
+# SingleTask
 
-The web documentation for Tod.
+Do things one at a time
 
 ## Run locally
 

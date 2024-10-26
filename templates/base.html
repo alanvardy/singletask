@@ -19,6 +19,17 @@
         fill: white;
       }
       </style>
+      <script>
+      $(".navbar-burger").click(function() {
+        $(".navbar-menu").addClass("is-active");  
+        console.long("OPEN");
+      });
+
+      $(".navbar-burger").click(function() {
+         $(".navbar-menu").removeClass("is-active");
+        console.long("CLOSE");
+      });
+      </script>
     </head>
   <body>
     {% include "nav.html" %}
