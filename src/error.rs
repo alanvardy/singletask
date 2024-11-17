@@ -1,6 +1,5 @@
 use std::{fmt::Display, num::ParseIntError};
 
-use crate::color;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -12,12 +11,7 @@ pub struct Error {
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Error { source, message } = self;
-        write!(
-            f,
-            "Error from {}:\n{}",
-            color::yellow_string(source),
-            color::red_string(message)
-        )
+        write!(f, "Error from {}:\n{}", source, message)
     }
 }
 

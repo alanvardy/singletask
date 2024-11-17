@@ -3,30 +3,44 @@
       <p>
       SingleTask is a simple web app that helps you see and complete one task at a time
       </p>
-      <p>
-      {{token}}
-      </p>
-      <p>
-      Content: {{task.content}}
-      </p>
-      {% if !task.description.is_empty() %}
-            <p>
-            Description: {{task.description}}
-            </p>
-      {% endif %}
-      <p>
-      Priority: {{task.priority}}
-      </p>
-      {% if !task.labels.is_empty() %}
-            <p>
-            Labels: {% for label in task.labels %} {{label}} {% endfor %}
-            </p>
-      {% endif %}
-      </p>
-      {% if task.due.is_some() %}
-            <p>
-            Due: {{task.due.clone().unwrap().date}}
-            </p>
-      {% endif %}
-      <a href="/{{token}}/complete/{{task.id}}">COMPLETE</a>
+      <div class="section">
+        <div class="container">
+          <div class="columns is-mobile is-centered">
+            <div class="column is-full-mobile is-half-tablet is-one-third-desktop">
+              <div class="box">
+      
+                  <p>
+                  Content: {{task.content}}
+                  </p>
+                  {% if !task.description.is_empty() %}
+                        <p>
+                        Description: {{task.description}}
+                        </p>
+                  {% endif %}
+                  <p>
+                  Priority: {{task.priority}}
+                  </p>
+                  {% if !task.labels.is_empty() %}
+                        <p>
+                        Labels: {% for label in task.labels %} {{label}} {% endfor %}
+                        </p>
+                  {% endif %}
+                  {% if task.due.is_some() %}
+                        <p>
+                        Due: {{task.due.clone().unwrap().date}}
+                        </p>
+                  {% endif %}
+                <form action="/" method="GET">
+                    <input type="text" id="token" name="token" value={{token}} hidden>
+                    <input type="text" id="filter" name="filter" value="{{filter}}" hidden>
+                    <input type="text" id="timezone" name="timezone" value="{{timezone}}" hidden>
+                    <input type="text" id="task_id" name="task_id" value="{{task.id}}" hidden>
+
+                  <input type="submit" value="Complete" class="button">
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 {% endblock %}

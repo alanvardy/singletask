@@ -36,23 +36,33 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
     let has_timezone = params.contains_key("timezone");
     let has_task_id = params.contains_key("task_id");
 
-    if has_token && has_filter && has_timezone {
+    if !has_task_id && has_token && has_filter && has_timezone {
         let filter = params.get("filter").unwrap();
         let timezone = params.get("timezone").unwrap();
         let token = params.get("token").unwrap();
 
         let tasks = tasks::all_tasks(token, filter, timezone).await;
-        let task = tasks.unwrap().first().unwrap().clone();
-
-        let index = IndexWithTokenTemplate {
-            title: "SingleTask".into(),
-            navigation: crate::get_nav(),
-            token: token.to_owned(),
-            task,
-        };
-
-        Html(index.render().unwrap())
-    } else if has_task_id {
+        if let Some(task) = tasks.unwrap().first() {
+            let index = IndexWithTokenTemplate {
+                title: "SingleTask".into(),
+                navigation: crate::get_nav(),
+                token: token.to_owned(),
+                filter: filter.to_owned(),
+                timezone: timezone.to_owned(),
+                task: task.clone(),
+            };
+            Html(index.render().unwrap())
+        } else {
+            let index = IndexNoTask {
+                title: "SingleTask".into(),
+                navigation: crate::get_nav(),
+                token: token.to_owned(),
+                filter: filter.to_owned(),
+                timezone: timezone.to_owned(),
+            };
+            Html(index.render().unwrap())
+        }
+    } else if has_task_id && has_token && has_filter && has_timezone {
         let task_id = params.get("task_id").unwrap();
         let token = params.get("token").unwrap();
         let filter = params.get("filter").unwrap();
@@ -60,16 +70,27 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
 
         tasks::complete_task(token, task_id).await.unwrap();
         let tasks = tasks::all_tasks(token, filter, timezone).await;
-        let task = tasks.unwrap().first().unwrap().clone();
 
-        let index = IndexWithTokenTemplate {
-            title: "SingleTask".into(),
-            navigation: crate::get_nav(),
-            token: token.to_owned(),
-            task,
-        };
-
-        Html(index.render().unwrap())
+        if let Some(task) = tasks.unwrap().first() {
+            let index = IndexWithTokenTemplate {
+                title: "SingleTask".into(),
+                navigation: crate::get_nav(),
+                token: token.to_owned(),
+                filter: filter.to_owned(),
+                timezone: timezone.to_owned(),
+                task: task.clone(),
+            };
+            Html(index.render().unwrap())
+        } else {
+            let index = IndexNoTask {
+                title: "SingleTask".into(),
+                navigation: crate::get_nav(),
+                token: token.to_owned(),
+                filter: filter.to_owned(),
+                timezone: timezone.to_owned(),
+            };
+            Html(index.render().unwrap())
+        }
     } else {
         let index = IndexTemplate {
             title: "SingleTask".into(),
@@ -86,7 +107,19 @@ struct IndexWithTokenTemplate {
     title: String,
     navigation: Vec<Link>,
     token: String,
+    timezone: String,
     task: Task,
+    filter: String,
+}
+
+#[derive(Template)]
+#[template(path = "index_with_no_task.html")]
+struct IndexNoTask {
+    title: String,
+    navigation: Vec<Link>,
+    token: String,
+    timezone: String,
+    filter: String,
 }
 
 async fn index_with_token(Path(token): Path<String>) -> Html<String> {
@@ -98,6 +131,8 @@ async fn index_with_token(Path(token): Path<String>) -> Html<String> {
     let index = IndexWithTokenTemplate {
         title: "SingleTask".into(),
         navigation: crate::get_nav(),
+        filter,
+        timezone,
         token,
         task,
     };
@@ -115,6 +150,8 @@ async fn complete_task(Path((token, task_id)): Path<(String, String)>) -> Html<S
         title: "SingleTask".into(),
         navigation: crate::get_nav(),
         token,
+        filter,
+        timezone,
         task,
     };
 

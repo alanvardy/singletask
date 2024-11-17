@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+      <p>
+      SingleTask is a simple web app that helps you see and complete one task at a time
+      </p>
+      <div class="section">
+        <div class="container">
+          <div class="columns is-mobile is-centered">
+            <div class="column is-full-mobile is-half-tablet is-one-third-desktop">
+              <div class="box">
+                No tasks to complete with filter: {{filter}}      
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+{% endblock %}
