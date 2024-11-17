@@ -6,4 +6,27 @@
       <p>
       {{token}}
       </p>
+      <p>
+      Content: {{task.content}}
+      </p>
+      {% if !task.description.is_empty() %}
+            <p>
+            Description: {{task.description}}
+            </p>
+      {% endif %}
+      <p>
+      Priority: {{task.priority}}
+      </p>
+      {% if !task.labels.is_empty() %}
+            <p>
+            Labels: {% for label in task.labels %} {{label}} {% endfor %}
+            </p>
+      {% endif %}
+      </p>
+      {% if task.due.is_some() %}
+            <p>
+            Due: {{task.due.clone().unwrap().date}}
+            </p>
+      {% endif %}
+      <a href="/{{token}}/complete/{{task.id}}">COMPLETE</a>
 {% endblock %}

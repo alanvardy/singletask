@@ -3,7 +3,11 @@ use serde::Serialize;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing::Level;
 
+mod color;
+mod error;
 mod index;
+mod tasks;
+mod time;
 
 #[derive(Serialize)]
 struct Link {
