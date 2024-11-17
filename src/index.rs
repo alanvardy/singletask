@@ -4,21 +4,10 @@ use crate::tasks;
 use crate::tasks::Task;
 use crate::Link;
 use askama_axum::Template;
-use axum::{
-    extract::{Path, Query},
-    response::Html,
-    routing::get,
-    Router,
-};
-
-const FILTER: &str = "tod | overdue";
-const TIMEZONE: &str = "America/Los Angeles";
+use axum::{extract::Query, response::Html, routing::get, Router};
 
 pub fn routes() -> Router {
-    Router::new()
-        .route("/", get(index))
-        .route("/:token", get(index_with_token))
-        .route("/:token/complete/:task_id", get(complete_task))
+    Router::new().route("/", get(index))
 }
 
 #[derive(Template)]
@@ -28,6 +17,26 @@ struct IndexTemplate {
     navigation: Vec<Link>,
 }
 
+#[derive(Template)]
+#[template(path = "index_with_task.html")]
+struct IndexWithTask {
+    title: String,
+    navigation: Vec<Link>,
+    token: String,
+    timezone: String,
+    task: Task,
+    filter: String,
+}
+
+#[derive(Template)]
+#[template(path = "index_with_no_task.html")]
+struct IndexNoTask {
+    title: String,
+    navigation: Vec<Link>,
+    token: String,
+    timezone: String,
+    filter: String,
+}
 async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
     dbg!(params.clone());
 
@@ -43,7 +52,7 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
 
         let tasks = tasks::all_tasks(token, filter, timezone).await;
         if let Some(task) = tasks.unwrap().first() {
-            let index = IndexWithTokenTemplate {
+            let index = IndexWithTask {
                 title: "SingleTask".into(),
                 navigation: crate::get_nav(),
                 token: token.to_owned(),
@@ -72,7 +81,7 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
         let tasks = tasks::all_tasks(token, filter, timezone).await;
 
         if let Some(task) = tasks.unwrap().first() {
-            let index = IndexWithTokenTemplate {
+            let index = IndexWithTask {
                 title: "SingleTask".into(),
                 navigation: crate::get_nav(),
                 token: token.to_owned(),
@@ -99,61 +108,4 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
 
         Html(index.render().unwrap())
     }
-}
-
-#[derive(Template)]
-#[template(path = "index_with_token.html")]
-struct IndexWithTokenTemplate {
-    title: String,
-    navigation: Vec<Link>,
-    token: String,
-    timezone: String,
-    task: Task,
-    filter: String,
-}
-
-#[derive(Template)]
-#[template(path = "index_with_no_task.html")]
-struct IndexNoTask {
-    title: String,
-    navigation: Vec<Link>,
-    token: String,
-    timezone: String,
-    filter: String,
-}
-
-async fn index_with_token(Path(token): Path<String>) -> Html<String> {
-    let filter = FILTER.to_string();
-    let timezone = TIMEZONE.to_string();
-    let tasks = tasks::all_tasks(&token, &filter, &timezone).await;
-    let task = tasks.unwrap().first().unwrap().clone();
-
-    let index = IndexWithTokenTemplate {
-        title: "SingleTask".into(),
-        navigation: crate::get_nav(),
-        filter,
-        timezone,
-        token,
-        task,
-    };
-
-    Html(index.render().unwrap())
-}
-async fn complete_task(Path((token, task_id)): Path<(String, String)>) -> Html<String> {
-    tasks::complete_task(&token, &task_id).await.unwrap();
-    let filter = FILTER.to_string();
-    let timezone = TIMEZONE.to_string();
-    let tasks = tasks::all_tasks(&token, &filter, &timezone).await;
-    let task = tasks.unwrap().first().unwrap().clone();
-
-    let index = IndexWithTokenTemplate {
-        title: "SingleTask".into(),
-        navigation: crate::get_nav(),
-        token,
-        filter,
-        timezone,
-        task,
-    };
-
-    Html(index.render().unwrap())
 }
