@@ -1,42 +1,34 @@
 {% extends "base.html" %}
 {% block content %}
-      <p>
-      SingleTask is a simple web app that helps you see and complete one task at a time
-      </p>
       <div class="section">
         <div class="container">
           <div class="columns is-mobile is-centered">
-            <div class="column is-full-mobile is-half-tablet is-one-third-desktop">
+            <div class="column is-full-mobile is-half-tablet is-half-desktop">
               <div class="box">
       
-                  <p>
-                  Content: {{task.content}}
-                  </p>
+                  <h4 class="{{content_color_class}}">{{task.content}}</h4>
                   {% if !task.description.is_empty() %}
-                        <p>
-                        Description: {{task.description}}
-                        </p>
-                  {% endif %}
-                  <p>
-                  Priority: {{task.priority}}
-                  </p>
-                  {% if !task.labels.is_empty() %}
-                        <p>
-                        Labels: {% for label in task.labels %} {{label}} {% endfor %}
-                        </p>
+                    <p class="is-size-6"> {{task.description}} </p>
                   {% endif %}
                   {% if task.due.is_some() %}
-                        <p>
-                        Due: {{task.due.clone().unwrap().date}}
-                        </p>
+                  <p>
+                    <span class="icon">
+                      <i class="fas fa-clock"></i>
+                    </span>
+                    {{task.due.clone().unwrap().date}}
                   {% endif %}
+                  {% if !task.labels.is_empty() %}
+                      {% for label in task.labels %} <span class="tag">{{label}}</span> {% endfor %}
+                  {% endif %}
+                  </p>
                 <form action="/" method="GET">
-                    <input type="text" id="token" name="token" value={{token}} hidden>
-                    <input type="text" id="filter" name="filter" value="{{filter}}" hidden>
-                    <input type="text" id="timezone" name="timezone" value="{{timezone}}" hidden>
-                    <input type="text" id="task_id" name="task_id" value="{{task.id}}" hidden>
-
-                  <input type="submit" value="Complete" class="button">
+                  <input type="text" id="token" name="token" value={{token}} hidden>
+                  <input type="text" id="filter" name="filter" value="{{filter}}" hidden>
+                  <input type="text" id="timezone" name="timezone" value="{{timezone}}" hidden>
+                  <input type="text" id="task_id" name="task_id" value="{{task.id}}" hidden>
+<div class="has-text-right">
+                  <input type="submit" value="Complete" class="button is-primary">
+</div>
                 </form>
               </div>
             </div>

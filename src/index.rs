@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::tasks;
 use crate::tasks::Task;
+use crate::tasks::{self, Priority};
 use crate::Link;
 use askama_axum::Template;
 use axum::{extract::Query, response::Html, routing::get, Router};
@@ -24,6 +24,7 @@ struct IndexWithTask {
     navigation: Vec<Link>,
     token: String,
     timezone: String,
+    content_color_class: String,
     task: Task,
     filter: String,
 }
@@ -38,8 +39,6 @@ struct IndexNoTask {
     filter: String,
 }
 async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
-    dbg!(params.clone());
-
     let has_token = params.contains_key("token");
     let has_filter = params.contains_key("filter");
     let has_timezone = params.contains_key("timezone");
@@ -57,6 +56,7 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
                 navigation: crate::get_nav(),
                 token: token.to_owned(),
                 filter: filter.to_owned(),
+                content_color_class: get_content_color_class(task),
                 timezone: timezone.to_owned(),
                 task: task.clone(),
             };
@@ -87,6 +87,7 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
                 token: token.to_owned(),
                 filter: filter.to_owned(),
                 timezone: timezone.to_owned(),
+                content_color_class: get_content_color_class(task),
                 task: task.clone(),
             };
             Html(index.render().unwrap())
@@ -107,5 +108,14 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
         };
 
         Html(index.render().unwrap())
+    }
+}
+
+fn get_content_color_class(task: &Task) -> String {
+    match task.priority {
+        Priority::None => String::new(),
+        Priority::Low => String::from("has-text-primary"),
+        Priority::Medium => String::from("has-text-warning"),
+        Priority::High => String::from("has-text-danger"),
     }
 }
