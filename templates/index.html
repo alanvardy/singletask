@@ -4,31 +4,21 @@
       <p>
       SingleTask is a simple web app that helps you see and complete one task at a time
       </p>
-      <div class="section">
-        <div class="container">
-          <div class="columns is-mobile is-centered">
-            <div class="column is-full-mobile is-half-tablet is-half-desktop">
-              <div class="box">
-      
-                <form action="/" method="GET">
-                  <div class="field">
-                          <label for="token" class="label">Token:</label>
-                          <input type="text" id="token" name="token" placeholder="Add Todoist API Key" class="input" required><br><br>
-                  </div>
-                  <div class="field">
-                          <label for="filter" class="label">Filter:</label>
-                          <input type="text" id="filter" name="filter" value="tod | overdue" class="input" required><br><br>
-                  </div>
-                  <div class="field">
-                          <label for="timezone" class="label">Timezone:</label>
-                          <input type="text" id="timezone" name="timezone" value="America/Los Angeles" class="input" required><br><br>
-                  </div>
-
-                  <input type="submit" value="Submit" class="button">
-                </form>
-              </div>
-            </div>
-          </div>
+     
+      <form action="/" method="GET">
+        <div class="field">
+                <label for="token" class="label">Token:</label>
+                <input type="text" id="token" name="token" placeholder="Add Todoist API Key" class="input" required><br><br>
         </div>
-      </div>
+        <div class="field">
+                <label for="filter" class="label">Filter:</label>
+                <input type="text" id="filter" name="filter" value="tod | overdue" class="input" required><br><br>
+        </div>
+        <div class="field">
+                <label for="timezone" class="label">Timezone:</label>
+                <input type="text" id="timezone" name="timezone" value="America/Los Angeles" class="input" required><br><br>
+        </div>
+
+        <input type="submit" value="Submit" class="button">
+      </form>
 {% endblock %}

@@ -1,10 +1,9 @@
-use std::collections::HashMap;
-
 use crate::tasks::Task;
 use crate::tasks::{self, Priority};
 use crate::Link;
 use askama_axum::Template;
 use axum::{extract::Query, response::Html, routing::get, Router};
+use std::collections::HashMap;
 
 pub fn routes() -> Router {
     Router::new().route("/", get(index))
@@ -48,11 +47,13 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
         let filter = params.get("filter").unwrap();
         let timezone = params.get("timezone").unwrap();
         let token = params.get("token").unwrap();
+        let mut title = filter.clone();
+        title.truncate(20);
 
         let tasks = tasks::all_tasks(token, filter, timezone).await;
         if let Some(task) = tasks.unwrap().first() {
             let index = IndexWithTask {
-                title: "SingleTask".into(),
+                title,
                 navigation: crate::get_nav(),
                 token: token.to_owned(),
                 filter: filter.to_owned(),
@@ -63,7 +64,7 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
             Html(index.render().unwrap())
         } else {
             let index = IndexNoTask {
-                title: "SingleTask".into(),
+                title,
                 navigation: crate::get_nav(),
                 token: token.to_owned(),
                 filter: filter.to_owned(),
@@ -76,13 +77,15 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
         let token = params.get("token").unwrap();
         let filter = params.get("filter").unwrap();
         let timezone = params.get("timezone").unwrap();
+        let mut title = filter.clone();
+        title.truncate(20);
 
         tasks::complete_task(token, task_id).await.unwrap();
         let tasks = tasks::all_tasks(token, filter, timezone).await;
 
         if let Some(task) = tasks.unwrap().first() {
             let index = IndexWithTask {
-                title: "SingleTask".into(),
+                title,
                 navigation: crate::get_nav(),
                 token: token.to_owned(),
                 filter: filter.to_owned(),
@@ -93,7 +96,7 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
             Html(index.render().unwrap())
         } else {
             let index = IndexNoTask {
-                title: "SingleTask".into(),
+                title,
                 navigation: crate::get_nav(),
                 token: token.to_owned(),
                 filter: filter.to_owned(),
@@ -103,7 +106,7 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
         }
     } else {
         let index = IndexTemplate {
-            title: "SingleTask".into(),
+            title: "Home".into(),
             navigation: crate::get_nav(),
         };
 

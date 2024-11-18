@@ -1,17 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
-      <p>
-      SingleTask is a simple web app that helps you see and complete one task at a time
-      </p>
-      <div class="section">
-        <div class="container">
-          <div class="columns is-mobile is-centered">
-            <div class="column is-full-mobile is-half-tablet is-half-desktop">
-              <div class="box">
-                No tasks to complete with filter: {{filter}}      
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+<h4>
+  <span class="icon">
+    <i class="fas fa-smile-beam"></i>
+  </span>
+  You are all caught up!
+</h4>
+<form action="/" method="GET">
+  <input type="text" id="token" name="token" value={{token}} hidden>
+  <div class="field">
+    <input type="text" id="filter" name="filter" value="{{filter}}" class="input" required><br><br>
+  </div>
+  <input type="text" id="timezone" name="timezone" value="{{timezone}}" hidden>
+  <div class="has-text-right">
+    <input type="submit" value="Change filter" class="button is-primary full-width-mobile">
+  </div>
+</form>
 {% endblock %}
