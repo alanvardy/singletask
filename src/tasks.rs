@@ -3,10 +3,8 @@ use std::fmt::Display;
 use crate::error;
 use crate::error::Error;
 use crate::time;
-use chrono::offset::Utc;
 use chrono::DateTime;
 use chrono::NaiveDate;
-use chrono::NaiveDateTime;
 use chrono_tz::Tz;
 use reqwest::Client;
 use reqwest::Response;
@@ -53,17 +51,13 @@ pub async fn post_todoist_sync(
     handle_response(response, "POST", url, body).await
 }
 
-pub async fn all_tasks(
-    token: &String,
-    filter: &String,
-    timezone: &String,
-) -> Result<Vec<Task>, Error> {
+pub async fn all_tasks(token: &str, filter: &str, timezone: &str) -> Result<Vec<Task>, Error> {
     let tasks = tasks_for_filter(token, filter).await?;
 
     Ok(sort_by_datetime(tasks, timezone))
 }
 
-pub async fn tasks_for_filter(token: &String, filter: &String) -> Result<Vec<Task>, Error> {
+pub async fn tasks_for_filter(token: &str, filter: &str) -> Result<Vec<Task>, Error> {
     use urlencoding::encode;
 
     let encoded = encode(filter);
@@ -72,7 +66,7 @@ pub async fn tasks_for_filter(token: &String, filter: &String) -> Result<Vec<Tas
     rest_json_to_tasks(json)
 }
 
-pub fn sort_by_datetime(mut tasks: Vec<Task>, timezone: &String) -> Vec<Task> {
+pub fn sort_by_datetime(mut tasks: Vec<Task>, timezone: &str) -> Vec<Task> {
     tasks.sort_by_key(|i| i.datetime(timezone));
     tasks
 }
@@ -137,7 +131,7 @@ impl Display for Priority {
 
 impl Task {
     /// Return the value of the due field
-    fn datetime(&self, timezone: &String) -> Option<DateTime<Tz>> {
+    fn datetime(&self, timezone: &str) -> Option<DateTime<Tz>> {
         match self.datetimeinfo(timezone) {
             Ok(DateTimeInfo::DateTime { datetime, .. }) => Some(datetime),
             Ok(DateTimeInfo::Date { date, .. }) => {
@@ -155,7 +149,7 @@ impl Task {
         }
     }
     /// Converts the JSON date representation into Date or Datetime
-    fn datetimeinfo(&self, timezone: &String) -> Result<DateTimeInfo, Error> {
+    fn datetimeinfo(&self, timezone: &str) -> Result<DateTimeInfo, Error> {
         let tz = match self.clone().due {
             None => time::timezone_from_str(timezone)?,
             Some(DateInfo { timezone: None, .. }) => time::timezone_from_str(timezone)?,
@@ -196,7 +190,7 @@ pub fn rest_json_to_tasks(json: String) -> Result<Vec<Task>, Error> {
 
 // Combine get and post into one function
 /// Get Todoist via REST api
-pub async fn get_todoist_rest(token: &String, url: &String) -> Result<String, Error> {
+pub async fn get_todoist_rest(token: &str, url: &str) -> Result<String, Error> {
     let request_url = format!("{TODOIST_URL}{url}");
     let authorization: &str = &format!("Bearer {token}");
     let response = Client::new()
@@ -209,6 +203,7 @@ pub async fn get_todoist_rest(token: &String, url: &String) -> Result<String, Er
     handle_response(response, "GET", url, json!({})).await
 }
 
+#[allow(dead_code)]
 enum DateTimeInfo {
     NoDateTime,
     Date {
@@ -226,7 +221,7 @@ enum DateTimeInfo {
 async fn handle_response(
     response: Response,
     method: &str,
-    url: &String,
+    url: &str,
     body: serde_json::Value,
 ) -> Result<String, Error> {
     if response.status().is_success() {
