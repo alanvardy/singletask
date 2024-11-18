@@ -50,6 +50,6 @@ mod tests {
         // Get the request.
         let response = server.get("/").await;
 
-        assert!(response.text().contains("a simple web app"))
+        assert!(response.text().contains("Todoist"))
     }
 }
