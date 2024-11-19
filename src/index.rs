@@ -80,10 +80,17 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
         let mut title = filter.clone();
         title.truncate(20);
 
-        tasks::complete_task(token, task_id).await.unwrap();
+        let handle = tasks::spawn_complete_task(token, task_id);
         let tasks = tasks::all_tasks(token, filter, timezone).await;
+        let _ = handle.await.unwrap();
 
-        if let Some(task) = tasks.unwrap().first() {
+        if let Some(task) = tasks
+            .unwrap()
+            .into_iter()
+            .filter(|t| *t.id != *task_id)
+            .collect::<Vec<Task>>()
+            .first()
+        {
             let index = IndexWithTask {
                 title,
                 navigation: crate::get_nav(),
