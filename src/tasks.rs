@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use crate::error;
 use crate::error::Error;
 use crate::time;
@@ -10,6 +8,8 @@ use reqwest::Client;
 use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::fmt::Display;
+use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 use reqwest::header::AUTHORIZATION;
@@ -19,8 +19,15 @@ const SYNC_URL: &str = "/sync/v9/sync";
 const REST_V2_TASKS_URL: &str = "/rest/v2/tasks/";
 const TODOIST_URL: &str = "https://api.todoist.com";
 
+// Completes task inside another thread
+pub fn spawn_complete_task(token: &str, task_id: &str) -> JoinHandle<Result<String, Error>> {
+    let token = token.to_owned();
+    let task_id = task_id.to_owned();
+    tokio::spawn(async move { complete_task(&token, &task_id).await })
+}
+
 /// Complete the last task returned by "next task"
-pub async fn complete_task(token: &String, task_id: &String) -> Result<String, Error> {
+pub async fn complete_task(token: &str, task_id: &str) -> Result<String, Error> {
     let uuid = Uuid::new_v4().to_string();
 
     let body = json!({"commands": [{"type": "item_close", "uuid": uuid, "temp_id": uuid, "args": {"id": task_id}}]});
@@ -34,8 +41,8 @@ pub async fn complete_task(token: &String, task_id: &String) -> Result<String, E
 /// Post to Todoist via sync API
 /// We use sync when we want natural languague processing.
 pub async fn post_todoist_sync(
-    token: &String,
-    url: &String,
+    token: &str,
+    url: &str,
     body: serde_json::Value,
 ) -> Result<String, Error> {
     let request_url = format!("{TODOIST_URL}{url}");
