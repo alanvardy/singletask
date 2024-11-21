@@ -7,16 +7,22 @@
      
       <form action="/" method="GET">
         <div class="field">
-                <label for="token" class="label">Token:</label>
-                <input type="text" id="token" name="token" placeholder="Add Todoist API Key" class="input" required><br><br>
+                <label for="token" class="label">API Token:</label>
+                <input type="text" id="token" name="token" placeholder="Add Todoist API token" class="input" required>
+          <div class="has-text-right">
+            <a href="https://app.todoist.com/app/settings/integrations/developer" class="is-size-7" target="_blank">Get your API token</a>
+          </div>
         </div>
         <div class="field">
                 <label for="filter" class="label">Filter:</label>
-                <input type="text" id="filter" name="filter" value="tod | overdue" class="input" required><br><br>
+                <input type="text" id="filter" name="filter" value="tod | overdue" class="input" required>
+          <div class="has-text-right">
+            <a href="https://todoist.com/help/articles/introduction-to-filters-V98wIH" class="is-size-7" target="_blank">More about filters</a>
+          </div>
         </div>
-        <div class="field">
+              <div class="field">
                 <label for="timezone" class="label">Timezone:</label>
-                <input type="text" id="timezone" name="timezone" value="America/Los Angeles" class="input" required><br><br>
+                <input type="text" id="timezone" name="timezone" value="America/Los Angeles" class="input" required>
         </div>
 
         <input type="submit" value="Submit" class="button">

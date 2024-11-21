@@ -6,10 +6,16 @@
   </span>
   You are all caught up!
 </h4>
+<p>
+  Would you like to use another filter?
+</p>
 <form action="/" method="GET">
   <input type="text" id="token" name="token" value={{token}} hidden>
   <div class="field">
-    <input type="text" id="filter" name="filter" value="{{filter}}" class="input" required><br><br>
+    <input type="text" id="filter" name="filter" value="{{filter}}" class="input" required>
+    <div class="has-text-right">
+      <a href="https://todoist.com/help/articles/introduction-to-filters-V98wIH" class="is-size-7" target="_blank">More about filters</a>
+    </div>
   </div>
   <input type="text" id="timezone" name="timezone" value="{{timezone}}" hidden>
   <div class="has-text-right">
