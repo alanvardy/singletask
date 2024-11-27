@@ -13,7 +13,7 @@ shuttle-runtime = "0.49.0"
 shuttle-axum = "0.49.0"
 askama_axum = "0.4.0"
 askama = "0.12.1"
-tracing = "0.1.40"
+tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"]}
 tower-http = { version = "0.6.1", features = ["trace"] }
 urlencoding = "2.1.3"
