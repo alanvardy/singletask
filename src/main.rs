@@ -1,5 +1,9 @@
 use axum::Router;
+use chrono::DateTime;
+use chrono_tz::Tz;
+use echodb::Db;
 use serde::Serialize;
+use tasks::Task;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing::Level;
 
@@ -7,6 +11,16 @@ mod error;
 mod index;
 mod tasks;
 mod time;
+
+struct AppState {
+    db: Db<String, UserState>,
+}
+
+#[derive(Clone, Eq, PartialEq)]
+struct UserState {
+    tasks: Vec<Task>,
+    updated_at: DateTime<Tz>,
+}
 
 #[derive(Serialize)]
 struct Link {

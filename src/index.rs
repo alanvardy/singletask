@@ -1,12 +1,21 @@
+use crate::error::Error;
 use crate::tasks::Task;
 use crate::tasks::{self, Priority};
-use crate::Link;
+use crate::{time, AppState, Link, UserState};
 use askama_axum::Template;
+use axum::extract::State;
 use axum::{extract::Query, response::Html, routing::get, Router};
 use std::collections::HashMap;
+use std::sync::Arc;
+
+const CACHE_TASKS_MAX_AGE_MINUTES: i64 = 15;
 
 pub fn routes() -> Router {
-    Router::new().route("/", get(index))
+    let db = echodb::new::<String, UserState>();
+    let shared_state = Arc::new(AppState { db });
+    Router::new()
+        .route("/", get(index))
+        .with_state(shared_state)
 }
 
 #[derive(Template)]
@@ -37,7 +46,10 @@ struct IndexNoTask {
     timezone: String,
     filter: String,
 }
-async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
+async fn index(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<HashMap<String, String>>,
+) -> Html<String> {
     let has_token = params.contains_key("token");
     let has_filter = params.contains_key("filter");
     let has_timezone = params.contains_key("timezone");
@@ -50,7 +62,7 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
         let mut title = filter.clone();
         title.truncate(20);
 
-        let tasks = tasks::all_tasks(token, filter, timezone).await;
+        let tasks = get_tasks(state, token, filter, timezone, None).await;
         if let Some(task) = tasks.unwrap().first() {
             let index = IndexWithTask {
                 title,
@@ -81,7 +93,7 @@ async fn index(Query(params): Query<HashMap<String, String>>) -> Html<String> {
         title.truncate(20);
 
         let handle = tasks::spawn_complete_task(token, task_id);
-        let tasks = tasks::all_tasks(token, filter, timezone).await;
+        let tasks = get_tasks(state, token, filter, timezone, Some(task_id)).await;
         let _ = handle.await.unwrap();
 
         if let Some(task) = tasks
@@ -128,4 +140,101 @@ fn get_content_color_class(task: &Task) -> String {
         Priority::Medium => String::from("has-text-warning"),
         Priority::High => String::from("has-text-danger"),
     }
+}
+
+async fn get_tasks(
+    state: Arc<AppState>,
+    token: &str,
+    filter: &str,
+    timezone: &str,
+    task_id: Option<&str>,
+) -> Result<Vec<Task>, Error> {
+    let key = format!("{token}{filter}");
+
+    let db = &state.clone().db;
+    let maybe_user_state = db.begin(false).await?.get(key.clone())?;
+
+    match determine_freshness(maybe_user_state, timezone, task_id)? {
+        Action::Fresh(user_state) => {
+            let tasks = filter_completed_task(user_state.tasks, task_id);
+            let mut tx = db.begin(true).await?;
+            let user_state = UserState {
+                tasks: tasks.clone(),
+                ..user_state
+            };
+            tx.set(key.clone(), user_state)?;
+            tx.commit()?;
+
+            Ok(tasks)
+        }
+        Action::Expired(_user_state) => {
+            let tasks = tasks::all_tasks(token, filter, timezone).await?;
+            let tasks = filter_completed_task(tasks, task_id);
+            let mut tx = db.begin(true).await?;
+            let updated_at = time::now(timezone)?;
+            let user_state = UserState {
+                tasks: tasks.clone(),
+                updated_at,
+            };
+            tx.set(key.clone(), user_state)?;
+            tx.commit()?;
+
+            Ok(tasks)
+        }
+        Action::Missing => {
+            let tasks = tasks::all_tasks(token, filter, timezone).await?;
+
+            let tasks = filter_completed_task(tasks, task_id);
+            let mut tx = db.begin(true).await?;
+            let updated_at = time::now(timezone)?;
+            let user_state = UserState {
+                tasks: tasks.clone(),
+                updated_at,
+            };
+            tx.set(key.clone(), user_state)?;
+            tx.commit()?;
+
+            Ok(tasks)
+        }
+    }
+}
+
+fn determine_freshness(
+    user_state: Option<UserState>,
+    timezone: &str,
+    task_id: Option<&str>,
+) -> Result<Action, Error> {
+    if let Some(state) = user_state {
+        if time::age_in_minutes(state.updated_at, timezone)? < CACHE_TASKS_MAX_AGE_MINUTES
+            && more_tasks(&state, task_id)
+        {
+            Ok(Action::Fresh(state))
+        } else {
+            Ok(Action::Expired(state))
+        }
+    } else {
+        Ok(Action::Missing)
+    }
+}
+
+fn filter_completed_task(tasks: Vec<Task>, task_id: Option<&str>) -> Vec<Task> {
+    tasks
+        .into_iter()
+        .filter(|t| t.id != task_id.unwrap_or_default())
+        .collect::<Vec<Task>>()
+}
+
+/// Checks if there are more tasks to process (beyond the one that we are now completing)
+fn more_tasks(state: &UserState, task_id: Option<&str>) -> bool {
+    let tasks = filter_completed_task(state.tasks.clone(), task_id);
+    !tasks.is_empty()
+}
+
+enum Action {
+    /// We have data but it is old or there are no tasks remaining
+    Expired(UserState),
+    // We have recent data
+    Fresh(UserState),
+    /// There is no data
+    Missing,
 }
