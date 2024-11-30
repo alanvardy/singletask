@@ -9,12 +9,12 @@ pub fn now(timezone: &str) -> Result<DateTime<Tz>, Error> {
     Ok(Utc::now().with_timezone(&tz))
 }
 
-/// Return today's date in format 2021-09-16
+// Return today's date in format 2021-09-16
 // pub fn today_string(timezone: &String) -> Result<String, Error> {
 //     Ok(now(timezone)?.format("%Y-%m-%d").to_string())
 // }
 
-/// Return today's date in Utc
+// Return today's date in Utc
 // pub fn today_date(timezone: &String) -> Result<NaiveDate, Error> {
 //     Ok(now(timezone)?.date_naive())
 // }
@@ -29,10 +29,17 @@ pub fn now(timezone: &str) -> Result<DateTime<Tz>, Error> {
 //     Ok(date_string == today_string)
 // }
 
-// pub fn is_date_in_past(date: NaiveDate, timezone: &String) -> Result<bool, Error> {
-//     let num_days = date.signed_duration_since(today_date(timezone)?).num_days();
-//     Ok(num_days < 0)
+// pub fn date_is_today(date: NaiveDate, timezone: String) -> Result<bool, Error> {
+//     let date_string = date.format("%Y-%m-%d").to_string();
+//     let today_string = today_string(&timezone)?;
+//     Ok(date_string == today_string)
 // }
+
+/// How far in the past a datetime is, in minutes
+pub fn age_in_minutes(datetime: DateTime<Tz>, timezone: &str) -> Result<i64, Error> {
+    let num_minutes = datetime.signed_duration_since(now(timezone)?).num_minutes();
+    Ok(num_minutes)
+}
 
 // pub fn format_date(date: &NaiveDate, timezone: String) -> Result<String, Error> {
 //     if date_is_today(*date, timezone)? {
@@ -128,13 +135,13 @@ pub fn date_from_str(str: &str, timezone: Tz) -> Result<NaiveDate, Error> {
     Ok(date)
 }
 
-/// Checks if string is a date in format YYYY-MM-DD
+// Checks if string is a date in format YYYY-MM-DD
 // pub fn is_date(string: &str) -> bool {
 //     let re = Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap();
 //     re.is_match(string)
 // }
 
-/// Checks if string is a datetime in format YYYY-MM-DD HH:MM
+// Checks if string is a datetime in format YYYY-MM-DD HH:MM
 // pub fn is_datetime(string: &str) -> bool {
 //     let re = Regex::new(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$").unwrap();
 //     re.is_match(string)

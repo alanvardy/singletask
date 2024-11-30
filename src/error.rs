@@ -24,6 +24,15 @@ impl From<std::io::Error> for Error {
     }
 }
 
+impl From<echodb::Error> for Error {
+    fn from(value: echodb::Error) -> Self {
+        Self {
+            source: String::from("echodb"),
+            message: format!("{value}"),
+        }
+    }
+}
+
 impl From<chrono::LocalResult<chrono::DateTime<chrono_tz::Tz>>> for Error {
     fn from(value: chrono::LocalResult<chrono::DateTime<chrono_tz::Tz>>) -> Self {
         Self {
