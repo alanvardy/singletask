@@ -53,16 +53,17 @@ async fn index(
     let has_token = params.contains_key("token");
     let has_filter = params.contains_key("filter");
     let has_timezone = params.contains_key("timezone");
-    let has_task_id = params.contains_key("task_id");
+    let has_complete_task_id = params.contains_key("complete_task_id");
+    let skip_task_id = params.get("skip_task_id");
 
-    if !has_task_id && has_token && has_filter && has_timezone {
+    if !has_complete_task_id && has_token && has_filter && has_timezone {
         let filter = params.get("filter").unwrap();
         let timezone = params.get("timezone").unwrap();
         let token = params.get("token").unwrap();
         let mut title = filter.clone();
         title.truncate(20);
 
-        let tasks = get_tasks(state, token, filter, timezone, None).await;
+        let tasks = get_tasks(state, token, filter, timezone, None, skip_task_id).await;
         if let Some(task) = tasks.unwrap().first() {
             let index = IndexWithTask {
                 title,
@@ -84,22 +85,30 @@ async fn index(
             };
             Html(index.render().unwrap())
         }
-    } else if has_task_id && has_token && has_filter && has_timezone {
-        let task_id = params.get("task_id").unwrap();
+    } else if has_complete_task_id && has_token && has_filter && has_timezone {
+        let complete_task_id = params.get("complete_task_id").unwrap();
         let token = params.get("token").unwrap();
         let filter = params.get("filter").unwrap();
         let timezone = params.get("timezone").unwrap();
         let mut title = filter.clone();
         title.truncate(20);
 
-        let handle = tasks::spawn_complete_task(token, task_id);
-        let tasks = get_tasks(state, token, filter, timezone, Some(task_id)).await;
+        let handle = tasks::spawn_complete_task(token, complete_task_id);
+        let tasks = get_tasks(
+            state,
+            token,
+            filter,
+            timezone,
+            Some(complete_task_id),
+            skip_task_id,
+        )
+        .await;
         let _ = handle.await.unwrap();
 
         if let Some(task) = tasks
             .unwrap()
             .into_iter()
-            .filter(|t| *t.id != *task_id)
+            .filter(|t| *t.id != *complete_task_id)
             .collect::<Vec<Task>>()
             .first()
         {
@@ -147,19 +156,29 @@ async fn get_tasks(
     token: &str,
     filter: &str,
     timezone: &str,
-    task_id: Option<&str>,
+    complete_task_id: Option<&str>,
+    skip_task_id: Option<&String>,
 ) -> Result<Vec<Task>, Error> {
     let key = format!("{token}{filter}");
 
     let db = &state.clone().db;
     let maybe_user_state = db.begin(false).await?.get(key.clone())?;
 
-    match determine_freshness(maybe_user_state, timezone, task_id)? {
-        Action::Fresh(user_state) => {
-            let tasks = filter_completed_task(user_state.tasks, task_id);
+    let skip_task_ids = if let Some(task_id) = skip_task_id {
+        vec![task_id.to_string()]
+    } else {
+        Vec::new()
+    };
+
+    match determine_freshness(maybe_user_state, timezone, complete_task_id, &skip_task_ids)? {
+        CacheResult::Hit(user_state) => {
+            println!("CACHE HIT");
+            let skip_task_ids = merge_skip_task_ids(&user_state, skip_task_id);
+            let tasks = filter_completed_task(user_state.tasks, complete_task_id, &skip_task_ids);
             let mut tx = db.begin(true).await?;
             let user_state = UserState {
                 tasks: tasks.clone(),
+                skip_task_ids,
                 ..user_state
             };
             tx.set(key.clone(), user_state)?;
@@ -167,13 +186,15 @@ async fn get_tasks(
 
             Ok(tasks)
         }
-        Action::Expired(_user_state) => {
+        CacheResult::Expired(_user_state) => {
+            println!("CACHE EXPIRED OR NO TASKS");
             let tasks = tasks::all_tasks(token, filter, timezone).await?;
-            let tasks = filter_completed_task(tasks, task_id);
+            let tasks = filter_completed_task(tasks, complete_task_id, &skip_task_ids);
             let mut tx = db.begin(true).await?;
             let updated_at = time::now(timezone)?;
             let user_state = UserState {
                 tasks: tasks.clone(),
+                skip_task_ids,
                 updated_at,
             };
             tx.set(key.clone(), user_state)?;
@@ -181,14 +202,16 @@ async fn get_tasks(
 
             Ok(tasks)
         }
-        Action::Missing => {
+        CacheResult::Miss => {
+            println!("CACHE MISS");
             let tasks = tasks::all_tasks(token, filter, timezone).await?;
 
-            let tasks = filter_completed_task(tasks, task_id);
+            let tasks = filter_completed_task(tasks, complete_task_id, &skip_task_ids);
             let mut tx = db.begin(true).await?;
             let updated_at = time::now(timezone)?;
             let user_state = UserState {
                 tasks: tasks.clone(),
+                skip_task_ids,
                 updated_at,
             };
             tx.set(key.clone(), user_state)?;
@@ -196,45 +219,60 @@ async fn get_tasks(
 
             Ok(tasks)
         }
+    }
+}
+
+fn merge_skip_task_ids(user_state: &UserState, skip_task_id: Option<&String>) -> Vec<String> {
+    if let Some(skip_task_id) = skip_task_id {
+        let mut skip_task_ids = user_state.skip_task_ids.clone();
+        skip_task_ids.push(skip_task_id.to_string());
+        skip_task_ids
+    } else {
+        user_state.skip_task_ids.clone()
     }
 }
 
 fn determine_freshness(
     user_state: Option<UserState>,
     timezone: &str,
-    task_id: Option<&str>,
-) -> Result<Action, Error> {
+    complete_task_id: Option<&str>,
+    skip_task_ids: &[String],
+) -> Result<CacheResult, Error> {
     if let Some(state) = user_state {
         if time::age_in_minutes(state.updated_at, timezone)? < CACHE_TASKS_MAX_AGE_MINUTES
-            && more_tasks(&state, task_id)
+            && more_tasks(&state, complete_task_id, skip_task_ids)
         {
-            Ok(Action::Fresh(state))
+            Ok(CacheResult::Hit(state))
         } else {
-            Ok(Action::Expired(state))
+            Ok(CacheResult::Expired(state))
         }
     } else {
-        Ok(Action::Missing)
+        Ok(CacheResult::Miss)
     }
 }
 
-fn filter_completed_task(tasks: Vec<Task>, task_id: Option<&str>) -> Vec<Task> {
+fn filter_completed_task(
+    tasks: Vec<Task>,
+    complete_task_id: Option<&str>,
+    skip_task_ids: &[String],
+) -> Vec<Task> {
     tasks
         .into_iter()
-        .filter(|t| t.id != task_id.unwrap_or_default())
+        .filter(|t| t.id != complete_task_id.unwrap_or_default() && !skip_task_ids.contains(&t.id))
         .collect::<Vec<Task>>()
 }
 
 /// Checks if there are more tasks to process (beyond the one that we are now completing)
-fn more_tasks(state: &UserState, task_id: Option<&str>) -> bool {
-    let tasks = filter_completed_task(state.tasks.clone(), task_id);
+fn more_tasks(state: &UserState, complete_task_id: Option<&str>, skip_task_ids: &[String]) -> bool {
+    let tasks = filter_completed_task(state.tasks.clone(), complete_task_id, skip_task_ids);
     !tasks.is_empty()
 }
 
-enum Action {
+enum CacheResult {
     /// We have data but it is old or there are no tasks remaining
     Expired(UserState),
     // We have recent data
-    Fresh(UserState),
+    Hit(UserState),
     /// There is no data
-    Missing,
+    Miss,
 }
