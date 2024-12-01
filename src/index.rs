@@ -1,20 +1,33 @@
 use crate::error::Error;
 use crate::tasks::Task;
 use crate::tasks::{self, Priority};
+use crate::unsplash::Unsplash;
 use crate::{time, AppState, Link, UserState};
+use crate::{unsplash, Env};
 use askama_axum::Template;
 use axum::extract::State;
 use axum::{extract::Query, response::Html, routing::get, Router};
+use shuttle_runtime::SecretStore;
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Arc;
 
 const CACHE_TASKS_MAX_AGE_MINUTES: i64 = 15;
+const UNSPLASH_API_KEY: &str = "UNSPLASH_API_KEY";
+const ENV: &str = "ENV";
 
-pub fn routes() -> Router {
+pub fn routes(secrets: SecretStore) -> Router {
     let db = echodb::new::<String, UserState>();
-    let shared_state = Arc::new(AppState { db });
+    let unsplash_api_key = secrets.get(UNSPLASH_API_KEY).expect(UNSPLASH_API_KEY);
+    let env = secrets.get(ENV).expect(ENV);
+    let shared_state = Arc::new(AppState {
+        db,
+        unsplash_api_key,
+        env: Env::from_str(&env).unwrap(),
+    });
     Router::new()
-        .route("/", get(index))
+        .route("/", get(home))
+        .route("/process", get(process))
         .with_state(shared_state)
 }
 
@@ -23,6 +36,7 @@ pub fn routes() -> Router {
 struct IndexTemplate {
     title: String,
     navigation: Vec<Link>,
+    unsplash: Unsplash,
 }
 
 #[derive(Template)]
@@ -35,6 +49,7 @@ struct IndexWithTask {
     content_color_class: String,
     task: Task,
     filter: String,
+    unsplash: Unsplash,
 }
 
 #[derive(Template)]
@@ -45,25 +60,44 @@ struct IndexNoTask {
     token: String,
     timezone: String,
     filter: String,
+    unsplash: Unsplash,
 }
-async fn index(
-    State(state): State<Arc<AppState>>,
+
+async fn home(
+    State(_app_state): State<Arc<AppState>>,
+    Query(_params): Query<HashMap<String, String>>,
+) -> Html<String> {
+    let index = IndexTemplate {
+        title: "Home".into(),
+        navigation: crate::get_nav(),
+        unsplash: unsplash::stub(),
+    };
+
+    Html(index.render().unwrap())
+}
+
+async fn process(
+    State(app_state): State<Arc<AppState>>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Html<String> {
-    let has_token = params.contains_key("token");
-    let has_filter = params.contains_key("filter");
-    let has_timezone = params.contains_key("timezone");
     let has_complete_task_id = params.contains_key("complete_task_id");
     let skip_task_id = params.get("skip_task_id");
+    let filter = params.get("filter").unwrap();
+    let timezone = params.get("timezone").unwrap();
+    let token = params.get("token").unwrap();
+    let key = format!("{token}{filter}");
 
-    if !has_complete_task_id && has_token && has_filter && has_timezone {
-        let filter = params.get("filter").unwrap();
-        let timezone = params.get("timezone").unwrap();
-        let token = params.get("token").unwrap();
-        let mut title = filter.clone();
-        title.truncate(20);
+    let user_state = get_or_create_user_state(app_state.clone(), &key, timezone)
+        .await
+        .unwrap();
+    let unsplash = unsplash::cached_get_random(&app_state, &user_state, timezone, key)
+        .await
+        .unwrap();
+    let mut title = filter.clone();
+    title.truncate(20);
 
-        let tasks = get_tasks(state, token, filter, timezone, None, skip_task_id).await;
+    if !has_complete_task_id {
+        let tasks = get_tasks(app_state, token, filter, timezone, None, skip_task_id).await;
         if let Some(task) = tasks.unwrap().first() {
             let index = IndexWithTask {
                 title,
@@ -73,6 +107,7 @@ async fn index(
                 content_color_class: get_content_color_class(task),
                 timezone: timezone.to_owned(),
                 task: task.clone(),
+                unsplash,
             };
             Html(index.render().unwrap())
         } else {
@@ -82,20 +117,16 @@ async fn index(
                 token: token.to_owned(),
                 filter: filter.to_owned(),
                 timezone: timezone.to_owned(),
+                unsplash,
             };
             Html(index.render().unwrap())
         }
-    } else if has_complete_task_id && has_token && has_filter && has_timezone {
+    } else {
         let complete_task_id = params.get("complete_task_id").unwrap();
-        let token = params.get("token").unwrap();
-        let filter = params.get("filter").unwrap();
-        let timezone = params.get("timezone").unwrap();
-        let mut title = filter.clone();
-        title.truncate(20);
 
         let handle = tasks::spawn_complete_task(token, complete_task_id);
         let tasks = get_tasks(
-            state,
+            app_state,
             token,
             filter,
             timezone,
@@ -105,13 +136,7 @@ async fn index(
         .await;
         let _ = handle.await.unwrap();
 
-        if let Some(task) = tasks
-            .unwrap()
-            .into_iter()
-            .filter(|t| *t.id != *complete_task_id)
-            .collect::<Vec<Task>>()
-            .first()
-        {
+        if let Some(task) = tasks.unwrap().first() {
             let index = IndexWithTask {
                 title,
                 navigation: crate::get_nav(),
@@ -120,6 +145,7 @@ async fn index(
                 timezone: timezone.to_owned(),
                 content_color_class: get_content_color_class(task),
                 task: task.clone(),
+                unsplash,
             };
             Html(index.render().unwrap())
         } else {
@@ -129,16 +155,10 @@ async fn index(
                 token: token.to_owned(),
                 filter: filter.to_owned(),
                 timezone: timezone.to_owned(),
+                unsplash,
             };
             Html(index.render().unwrap())
         }
-    } else {
-        let index = IndexTemplate {
-            title: "Home".into(),
-            navigation: crate::get_nav(),
-        };
-
-        Html(index.render().unwrap())
     }
 }
 
@@ -151,8 +171,29 @@ fn get_content_color_class(task: &Task) -> String {
     }
 }
 
+async fn get_or_create_user_state(
+    app_state: Arc<AppState>,
+    key: &str,
+    timezone: &str,
+) -> Result<UserState, Error> {
+    let db = &app_state.clone().db;
+    let maybe_user_state = db.begin(false).await?.get(key.to_string())?;
+
+    if let Some(user_state) = maybe_user_state {
+        Ok(user_state)
+    } else {
+        Ok(UserState {
+            tasks: Vec::new(),
+            skip_task_ids: Vec::new(),
+            tasks_updated_at: time::now(timezone)?,
+            unsplash: None,
+            unsplash_updated_at: time::now(timezone)?,
+        })
+    }
+}
+
 async fn get_tasks(
-    state: Arc<AppState>,
+    app_state: Arc<AppState>,
     token: &str,
     filter: &str,
     timezone: &str,
@@ -161,20 +202,20 @@ async fn get_tasks(
 ) -> Result<Vec<Task>, Error> {
     let key = format!("{token}{filter}");
 
-    let db = &state.clone().db;
-    let maybe_user_state = db.begin(false).await?.get(key.clone())?;
-
+    let user_state = get_or_create_user_state(app_state.clone(), &key, timezone).await?;
     let skip_task_ids = if let Some(task_id) = skip_task_id {
         vec![task_id.to_string()]
     } else {
         Vec::new()
     };
 
-    match determine_freshness(maybe_user_state, timezone, complete_task_id, &skip_task_ids)? {
+    let db = &app_state.clone().db;
+    match determine_freshness(user_state, timezone, complete_task_id, &skip_task_ids)? {
         CacheResult::Hit(user_state) => {
             println!("CACHE HIT");
             let skip_task_ids = merge_skip_task_ids(&user_state, skip_task_id);
-            let tasks = filter_completed_task(user_state.tasks, complete_task_id, &skip_task_ids);
+            let tasks =
+                filter_completed_task(user_state.tasks.clone(), complete_task_id, &skip_task_ids);
             let mut tx = db.begin(true).await?;
             let user_state = UserState {
                 tasks: tasks.clone(),
@@ -186,33 +227,17 @@ async fn get_tasks(
 
             Ok(tasks)
         }
-        CacheResult::Expired(_user_state) => {
+        CacheResult::Expired(user_state) => {
             println!("CACHE EXPIRED OR NO TASKS");
             let tasks = tasks::all_tasks(token, filter, timezone).await?;
             let tasks = filter_completed_task(tasks, complete_task_id, &skip_task_ids);
             let mut tx = db.begin(true).await?;
-            let updated_at = time::now(timezone)?;
+            let tasks_updated_at = time::now(timezone)?;
             let user_state = UserState {
                 tasks: tasks.clone(),
                 skip_task_ids,
-                updated_at,
-            };
-            tx.set(key.clone(), user_state)?;
-            tx.commit()?;
-
-            Ok(tasks)
-        }
-        CacheResult::Miss => {
-            println!("CACHE MISS");
-            let tasks = tasks::all_tasks(token, filter, timezone).await?;
-
-            let tasks = filter_completed_task(tasks, complete_task_id, &skip_task_ids);
-            let mut tx = db.begin(true).await?;
-            let updated_at = time::now(timezone)?;
-            let user_state = UserState {
-                tasks: tasks.clone(),
-                skip_task_ids,
-                updated_at,
+                tasks_updated_at,
+                ..user_state.clone()
             };
             tx.set(key.clone(), user_state)?;
             tx.commit()?;
@@ -233,21 +258,17 @@ fn merge_skip_task_ids(user_state: &UserState, skip_task_id: Option<&String>) ->
 }
 
 fn determine_freshness(
-    user_state: Option<UserState>,
+    user_state: UserState,
     timezone: &str,
     complete_task_id: Option<&str>,
     skip_task_ids: &[String],
 ) -> Result<CacheResult, Error> {
-    if let Some(state) = user_state {
-        if time::age_in_minutes(state.updated_at, timezone)? < CACHE_TASKS_MAX_AGE_MINUTES
-            && more_tasks(&state, complete_task_id, skip_task_ids)
-        {
-            Ok(CacheResult::Hit(state))
-        } else {
-            Ok(CacheResult::Expired(state))
-        }
+    if time::age_in_minutes(user_state.tasks_updated_at, timezone)? < CACHE_TASKS_MAX_AGE_MINUTES
+        && more_tasks(&user_state, complete_task_id, skip_task_ids)
+    {
+        Ok(CacheResult::Hit(user_state))
     } else {
-        Ok(CacheResult::Miss)
+        Ok(CacheResult::Expired(user_state))
     }
 }
 
@@ -273,6 +294,4 @@ enum CacheResult {
     Expired(UserState),
     // We have recent data
     Hit(UserState),
-    /// There is no data
-    Miss,
 }
