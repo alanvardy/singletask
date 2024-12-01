@@ -7,6 +7,14 @@
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.1/css/bulma.min.css">
       <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/all.css" integrity="sha384-mzrmE5qonljUremFsqc01SB46JvROS7bZs3IO2EmfFsd15uHvIt+Y8vEf7N7fWAU" crossorigin="anonymous">
       <style>
+
+       .background-image {
+          background-image: url('{{unsplash.urls.regular}}');
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          height: 100vh; /* Adjust the height as needed */
+        }
       @media (min-width: 768px) {
         .is-half {
           width: 50%;
@@ -38,8 +46,8 @@
       </script>
     </head>
   <body>
-    {% include "nav.html" %}
-    <section class="section">
+    <section class="background-image">
+      {% include "nav.html" %}
       <div class="container">
         <div class="content">
           <div class="columns is-mobile is-centered">

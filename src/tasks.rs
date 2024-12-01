@@ -1,23 +1,17 @@
-use crate::error;
 use crate::error::Error;
+use crate::request;
 use crate::time;
 use chrono::DateTime;
 use chrono::NaiveDate;
 use chrono_tz::Tz;
-use reqwest::Client;
-use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fmt::Display;
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
-use reqwest::header::AUTHORIZATION;
-use reqwest::header::CONTENT_TYPE;
-
 const SYNC_URL: &str = "/sync/v9/sync";
 const REST_V2_TASKS_URL: &str = "/rest/v2/tasks/";
-const TODOIST_URL: &str = "https://api.todoist.com";
 
 // Completes task inside another thread
 pub fn spawn_complete_task(token: &str, task_id: &str) -> JoinHandle<Result<String, Error>> {
@@ -33,31 +27,11 @@ pub async fn complete_task(token: &str, task_id: &str) -> Result<String, Error> 
     let body = json!({"commands": [{"type": "item_close", "uuid": uuid, "temp_id": uuid, "args": {"id": task_id}}]});
     let url = String::from(SYNC_URL);
 
-    post_todoist_sync(token, &url, body).await?;
+    request::post_todoist_sync(token, &url, body).await?;
 
     // Does not pass back a task
     Ok(String::from("✓"))
 }
-/// Post to Todoist via sync API
-/// We use sync when we want natural languague processing.
-pub async fn post_todoist_sync(
-    token: &str,
-    url: &str,
-    body: serde_json::Value,
-) -> Result<String, Error> {
-    let request_url = format!("{TODOIST_URL}{url}");
-
-    let response = Client::new()
-        .post(request_url.clone())
-        .header(CONTENT_TYPE, "application/json")
-        .header(AUTHORIZATION, format!("Bearer {token}"))
-        .json(&body)
-        .send()
-        .await?;
-
-    handle_response(response, "POST", url, body).await
-}
-
 pub async fn all_tasks(token: &str, filter: &str, timezone: &str) -> Result<Vec<Task>, Error> {
     let tasks = tasks_for_filter(token, filter).await?;
 
@@ -69,7 +43,7 @@ pub async fn tasks_for_filter(token: &str, filter: &str) -> Result<Vec<Task>, Er
 
     let encoded = encode(filter);
     let url = format!("{REST_V2_TASKS_URL}?filter={encoded}");
-    let json = get_todoist_rest(token, &url).await?;
+    let json = request::get_todoist_rest(token, &url).await?;
     rest_json_to_tasks(json)
 }
 
@@ -195,21 +169,6 @@ pub fn rest_json_to_tasks(json: String) -> Result<Vec<Task>, Error> {
     Ok(tasks)
 }
 
-// Combine get and post into one function
-/// Get Todoist via REST api
-pub async fn get_todoist_rest(token: &str, url: &str) -> Result<String, Error> {
-    let request_url = format!("{TODOIST_URL}{url}");
-    let authorization: &str = &format!("Bearer {token}");
-    let response = Client::new()
-        .get(request_url.clone())
-        .header(CONTENT_TYPE, "application/json")
-        .header(AUTHORIZATION, authorization)
-        .send()
-        .await?;
-
-    handle_response(response, "GET", url, json!({})).await
-}
-
 #[allow(dead_code)]
 enum DateTimeInfo {
     NoDateTime,
@@ -223,27 +182,4 @@ enum DateTimeInfo {
         is_recurring: bool,
         string: String,
     },
-}
-
-async fn handle_response(
-    response: Response,
-    method: &str,
-    url: &str,
-    body: serde_json::Value,
-) -> Result<String, Error> {
-    if response.status().is_success() {
-        Ok(response.text().await?)
-    } else {
-        let json_string = response.text().await?;
-        Err(error::new(
-            "reqwest",
-            &format!(
-                "
-            method: {method}
-            url: {url}
-            body: {body}
-            response: {json_string}",
-            ),
-        ))
-    }
 }
