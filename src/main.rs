@@ -19,6 +19,7 @@ struct AppState {
 #[derive(Clone, Eq, PartialEq)]
 struct UserState {
     tasks: Vec<Task>,
+    skip_task_ids: Vec<String>,
     updated_at: DateTime<Tz>,
 }
 
