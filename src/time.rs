@@ -35,9 +35,10 @@ pub fn now(timezone: &str) -> Result<DateTime<Tz>, Error> {
 //     Ok(date_string == today_string)
 // }
 
-/// How far in the past a datetime is, in minutes
+/// How far in the past a datetime is, in minutes.
+/// Postive in past, negative in future.
 pub fn age_in_minutes(datetime: DateTime<Tz>, timezone: &str) -> Result<i64, Error> {
-    let num_minutes = datetime.signed_duration_since(now(timezone)?).num_minutes();
+    let num_minutes = -datetime.signed_duration_since(now(timezone)?).num_minutes();
     Ok(num_minutes)
 }
 
