@@ -33,17 +33,6 @@
             }
         }
       </style>
-      <script>
-      $(".navbar-burger").click(function() {
-        $(".navbar-menu").addClass("is-active");  
-        console.long("OPEN");
-      });
-
-      $(".navbar-burger").click(function() {
-         $(".navbar-menu").removeClass("is-active");
-        console.long("CLOSE");
-      });
-      </script>
     </head>
   <body>
     <section class="background-image">
@@ -52,7 +41,7 @@
         <div class="content">
           <div class="columns is-mobile is-centered">
             <div class="column is-full-mobile is-half-tablet is-half-desktop">
-              <div class="box">
+              <div class="box mx-5">
                 {% block content %} DEFAULT CONTENT {% endblock %}
               </div>
             </div>
