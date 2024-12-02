@@ -1,9 +1,12 @@
+use std::sync::Arc;
+
 use axum::Router;
 use chrono::DateTime;
 use chrono_tz::Tz;
 use echodb::Db;
 use serde::Serialize;
 use shuttle_runtime::SecretStore;
+use std::str::FromStr;
 use strum::EnumString;
 use tasks::Task;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
@@ -12,10 +15,14 @@ use unsplash::Unsplash;
 
 mod error;
 mod index;
+mod process;
 mod request;
 mod tasks;
 mod time;
 mod unsplash;
+
+const UNSPLASH_API_KEY: &str = "UNSPLASH_API_KEY";
+const ENV: &str = "ENV";
 
 struct AppState {
     db: Db<String, UserState>,
@@ -27,6 +34,7 @@ struct AppState {
 enum Env {
     Prod,
     Dev,
+    Test,
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -44,19 +52,30 @@ struct Link {
     href: String,
 }
 
-fn routes(secrets: SecretStore) -> Router {
+fn routes(app_state: Arc<AppState>) -> Router {
     Router::new()
         // Routes
-        .merge(index::routes(secrets))
+        .merge(index::routes(app_state.clone()))
+        .merge(process::routes(app_state))
 }
 
 #[shuttle_runtime::main]
 async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum::ShuttleAxum {
-    let router = routes(secrets).layer(
+    let db = echodb::new::<String, UserState>();
+    let unsplash_api_key = secrets.get(UNSPLASH_API_KEY).expect(UNSPLASH_API_KEY);
+    let env = secrets.get(ENV).expect(ENV);
+    let app_state = Arc::new(AppState {
+        db,
+        unsplash_api_key,
+        env: Env::from_str(&env).unwrap(),
+    });
+
+    let router = routes(app_state).layer(
         TraceLayer::new_for_http()
             .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
             .on_response(DefaultOnResponse::new().level(Level::INFO)),
     );
+
     Ok(router.into())
 }
 
@@ -69,24 +88,40 @@ fn get_nav() -> Vec<Link> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use super::*;
     use axum_test::TestServer;
 
     #[tokio::test]
     async fn test_home() {
-        // you can replace this Router with your own app
+        let db = echodb::new::<String, UserState>();
+        let app_state = Arc::new(AppState {
+            db,
+            unsplash_api_key: "123".to_string(),
+            env: Env::Test,
+        });
+        let server = TestServer::new(routes(app_state)).unwrap();
 
-        let bt = BTreeMap::from([
-            ("UNSPLASH_API_KEY".to_owned(), "2".to_owned().into()),
-            ("ENV".to_owned(), "Dev".to_owned().into()),
-        ]);
-        let ss = SecretStore::new(bt);
-        let server = TestServer::new(routes(ss)).unwrap();
-        // Get the request.
-        let response = server.get("/").await;
+        let url = "/";
+        let text = "Todoist";
 
-        assert!(response.text().contains("Todoist"))
+        let response = server.get(url).await;
+        assert!(response.text().contains(text))
+    }
+
+    #[tokio::test]
+    async fn test_process() {
+        let db = echodb::new::<String, UserState>();
+        let app_state = Arc::new(AppState {
+            db,
+            unsplash_api_key: "123".to_string(),
+            env: Env::Test,
+        });
+        let server = TestServer::new(routes(app_state)).unwrap();
+
+        let url = "/process?token=a5c4e1bc54e1c79aca0c7b8bf57c4ed2b99ba608&filter=%23checklist&timezone=America%2FLos_Angeles";
+        let text = "Would you like to use another filter?";
+
+        let response = server.get(url).await;
+        assert!(response.text().contains(text))
     }
 }
