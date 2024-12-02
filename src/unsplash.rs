@@ -69,6 +69,7 @@ pub async fn get_random(app_state: &Arc<AppState>) -> Result<Unsplash, Error> {
             json_to_unsplash(json)
         }
         Env::Dev => Ok(stub()),
+        Env::Test => Ok(stub()),
     }
 }
 

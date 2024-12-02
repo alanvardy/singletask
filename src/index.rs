@@ -1,34 +1,22 @@
 use crate::error::Error;
 use crate::tasks::Task;
 use crate::tasks::{self, Priority};
+use crate::unsplash;
 use crate::unsplash::Unsplash;
 use crate::{time, AppState, Link, UserState};
-use crate::{unsplash, Env};
 use askama_axum::Template;
 use axum::extract::State;
 use axum::{extract::Query, response::Html, routing::get, Router};
-use shuttle_runtime::SecretStore;
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::sync::Arc;
 
 const CACHE_TASKS_MAX_AGE_MINUTES: i64 = 15;
-const UNSPLASH_API_KEY: &str = "UNSPLASH_API_KEY";
-const ENV: &str = "ENV";
 
-pub fn routes(secrets: SecretStore) -> Router {
-    let db = echodb::new::<String, UserState>();
-    let unsplash_api_key = secrets.get(UNSPLASH_API_KEY).expect(UNSPLASH_API_KEY);
-    let env = secrets.get(ENV).expect(ENV);
-    let shared_state = Arc::new(AppState {
-        db,
-        unsplash_api_key,
-        env: Env::from_str(&env).unwrap(),
-    });
+pub fn routes(app_state: Arc<AppState>) -> Router {
     Router::new()
         .route("/", get(home))
         .route("/process", get(process))
-        .with_state(shared_state)
+        .with_state(app_state)
 }
 
 #[derive(Template)]
