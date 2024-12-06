@@ -7,7 +7,7 @@ use reqwest::Response;
 use serde_json::json;
 
 const TODOIST_URL: &str = "https://api.todoist.com";
-const UNSPLASH_URL: &str = "https://api.unsplash.com/photos/random";
+const UNSPLASH_URL: &str = "https://api.unsplash.com/photos/random?query=nature";
 const ACCEPT_VERSION: &str = "Accept-Version";
 const UNSPLASH_VERSION: &str = "v1";
 
