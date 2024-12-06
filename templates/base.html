@@ -15,6 +15,11 @@
           background-repeat: no-repeat;
           height: 100vh; /* Adjust the height as needed */
         }
+        .bottom-right {
+            position: absolute;
+            bottom: 1.5rem;
+            right: 1.5rem;
+        }
       @media (min-width: 768px) {
         .is-half {
           width: 50%;
@@ -35,6 +40,9 @@
       </style>
     </head>
   <body>
+    <div class="is-pulled-right bottom-right">
+      <a href="{{unsplash.links.html}}" class="button is-secondary" target="_blank">Background by {{unsplash.user.name}}</a>
+    </div>
     <section class="background-image">
       {% include "nav.html" %}
       <div class="container">

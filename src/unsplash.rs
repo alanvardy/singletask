@@ -7,7 +7,7 @@ use crate::UserState;
 use crate::{error::Error, AppState};
 use serde::{Deserialize, Serialize};
 
-const MAX_UNSPLASH_AGE_MIN: i64 = 3600;
+const MAX_UNSPLASH_AGE_MIN: i64 = 1440;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Unsplash {
