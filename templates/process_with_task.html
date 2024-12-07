@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
      
-<h4 class="{{content_color_class}}">{{task.content}}</h4>
+<span class="{{content_color_class}} is-size-5 has-text-weight-semibold">{{task.content}}</span>
 {% if !task.description.is_empty() %}
   <p class="is-size-6"> {{task.description}} </p>
 {% endif %}
