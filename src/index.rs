@@ -1,3 +1,4 @@
+use crate::error::Error;
 use crate::unsplash;
 use crate::unsplash::Unsplash;
 use crate::{AppState, Link};
@@ -22,12 +23,12 @@ struct IndexTemplate {
 async fn home(
     State(_app_state): State<Arc<AppState>>,
     Query(_params): Query<HashMap<String, String>>,
-) -> Html<String> {
+) -> Result<Html<String>, Error> {
     let index = IndexTemplate {
         title: "Home".into(),
         navigation: crate::get_nav(),
         unsplash: unsplash::stub(),
     };
 
-    Html(index.render().unwrap())
+    Ok(Html(index.render()?))
 }

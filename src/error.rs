@@ -1,25 +1,45 @@
-use std::{fmt::Display, num::ParseIntError};
+use askama_axum::Response;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use std::num::ParseIntError;
+use tokio::task::JoinError;
 
-use serde::Deserialize;
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error {
     pub message: String,
     pub source: String,
+    pub code: StatusCode,
 }
 
-impl Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Error { source, message } = self;
-        write!(f, "Error from {}:\n{}", source, message)
+impl IntoResponse for Error {
+    fn into_response(self) -> Response {
+        let Self {
+            code,
+            source,
+            message,
+        } = self;
+        (code, format!("{source}: {message}")).into_response()
     }
 }
 
-impl From<std::io::Error> for Error {
-    fn from(value: std::io::Error) -> Self {
-        Self {
-            source: String::from("io"),
-            message: format!("{value}"),
+impl From<askama_axum::Error> for Error {
+    fn from(value: askama_axum::Error) -> Self {
+        match value {
+            askama::Error::Fmt(error) => Self {
+                source: String::from("askama_axum"),
+                message: format!("Formatting error {error}"),
+                code: StatusCode::INTERNAL_SERVER_ERROR,
+            },
+            askama::Error::Custom(error) => Self {
+                source: String::from("askama_axum"),
+                message: format!("Error on ? in template {error}"),
+                code: StatusCode::INTERNAL_SERVER_ERROR,
+            },
+            _ => Self {
+                source: String::from("askama_axum"),
+                message: value.to_string(),
+                code: StatusCode::INTERNAL_SERVER_ERROR,
+            },
         }
     }
 }
@@ -29,6 +49,7 @@ impl From<echodb::Error> for Error {
         Self {
             source: String::from("echodb"),
             message: format!("{value}"),
+            code: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -38,6 +59,7 @@ impl From<chrono::LocalResult<chrono::DateTime<chrono_tz::Tz>>> for Error {
         Self {
             source: String::from("chrono"),
             message: format!("{value:?}"),
+            code: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -47,6 +69,7 @@ impl From<tokio::sync::mpsc::error::SendError<Error>> for Error {
         Self {
             source: String::from("tokio mpsc"),
             message: format!("{value}"),
+            code: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -56,6 +79,17 @@ impl From<chrono_tz::ParseError> for Error {
         Self {
             source: String::from("chrono_tz"),
             message: format!("{value}"),
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+impl From<JoinError> for Error {
+    fn from(value: JoinError) -> Self {
+        Self {
+            source: String::from("tokio JoinError"),
+            message: format!("{value}"),
+            code: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -65,6 +99,7 @@ impl From<ParseIntError> for Error {
         Self {
             source: String::from("ParseIntError"),
             message: format!("{value}"),
+            code: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -74,6 +109,7 @@ impl From<chrono::ParseError> for Error {
         Self {
             source: String::from("chrono"),
             message: format!("{value}"),
+            code: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -83,6 +119,7 @@ impl From<serde_json::Error> for Error {
         Self {
             source: String::from("serde_json"),
             message: format!("{value}"),
+            code: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -92,6 +129,7 @@ impl From<reqwest::Error> for Error {
         Self {
             source: String::from("reqwest"),
             message: format!("{value}"),
+            code: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -100,5 +138,6 @@ pub fn new(source: &str, message: &str) -> Error {
     Error {
         source: String::from(source),
         message: String::from(message),
+        code: StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
