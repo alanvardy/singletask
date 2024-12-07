@@ -130,7 +130,7 @@ async fn process(
 
 fn get_content_color_class(task: &Task) -> String {
     match task.priority {
-        Priority::None => String::new(),
+        Priority::None => String::from("has-text-white"),
         Priority::Low => String::from("has-text-primary"),
         Priority::Medium => String::from("has-text-warning"),
         Priority::High => String::from("has-text-danger"),
