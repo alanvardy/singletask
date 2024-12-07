@@ -6,6 +6,7 @@ use crate::unsplash::Unsplash;
 use crate::{time, AppState, Link, UserState};
 use askama_axum::Template;
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::{extract::Query, response::Html, routing::get, Router};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -45,26 +46,22 @@ struct ProcessNoTask {
 async fn process(
     State(app_state): State<Arc<AppState>>,
     Query(params): Query<HashMap<String, String>>,
-) -> Html<String> {
+) -> Result<Html<String>, Error> {
     let has_complete_task_id = params.contains_key("complete_task_id");
     let skip_task_id = params.get("skip_task_id");
-    let filter = params.get("filter").unwrap();
-    let timezone = params.get("timezone").unwrap();
-    let token = params.get("token").unwrap();
+    let filter = fetch_parameter(&params, "filter")?;
+    let token = fetch_parameter(&params, "token")?;
+    let timezone = fetch_parameter(&params, "timezone")?;
     let key = format!("{token}{filter}");
 
-    let user_state = get_or_create_user_state(app_state.clone(), &key, timezone)
-        .await
-        .unwrap();
-    let unsplash = unsplash::cached_get_random(&app_state, &user_state, timezone, key)
-        .await
-        .unwrap();
+    let user_state = get_or_create_user_state(app_state.clone(), &key, &timezone).await?;
+    let unsplash = unsplash::cached_get_random(&app_state, &user_state, &timezone, key).await?;
     let mut title = filter.clone();
     title.truncate(20);
 
     if !has_complete_task_id {
-        let tasks = get_tasks(app_state, token, filter, timezone, None, skip_task_id).await;
-        if let Some(task) = tasks.unwrap().first() {
+        let tasks = get_tasks(app_state, &token, &filter, &timezone, None, skip_task_id).await;
+        if let Some(task) = tasks?.first() {
             let index = ProcessWithTask {
                 title,
                 navigation: crate::get_nav(),
@@ -75,7 +72,7 @@ async fn process(
                 task: task.clone(),
                 unsplash,
             };
-            Html(index.render().unwrap())
+            Ok(Html(index.render()?))
         } else {
             let index = ProcessNoTask {
                 title,
@@ -85,24 +82,24 @@ async fn process(
                 timezone: timezone.to_owned(),
                 unsplash,
             };
-            Html(index.render().unwrap())
+            Ok(Html(index.render()?))
         }
     } else {
-        let complete_task_id = params.get("complete_task_id").unwrap();
+        let complete_task_id = fetch_parameter(&params, "complete_task_id")?;
 
-        let handle = tasks::spawn_complete_task(token, complete_task_id);
+        let handle = tasks::spawn_complete_task(&token, &complete_task_id);
         let tasks = get_tasks(
             app_state,
-            token,
-            filter,
-            timezone,
-            Some(complete_task_id),
+            &token,
+            &filter,
+            &timezone,
+            Some(&complete_task_id),
             skip_task_id,
         )
         .await;
-        let _ = handle.await.unwrap();
+        let _ = handle.await?;
 
-        if let Some(task) = tasks.unwrap().first() {
+        if let Some(task) = tasks?.first() {
             let index = ProcessWithTask {
                 title,
                 navigation: crate::get_nav(),
@@ -113,7 +110,7 @@ async fn process(
                 task: task.clone(),
                 unsplash,
             };
-            Html(index.render().unwrap())
+            Ok(Html(index.render()?))
         } else {
             let index = ProcessNoTask {
                 title,
@@ -123,9 +120,20 @@ async fn process(
                 timezone: timezone.to_owned(),
                 unsplash,
             };
-            Html(index.render().unwrap())
+            Ok(Html(index.render()?))
         }
     }
+}
+
+fn fetch_parameter(params: &HashMap<String, String>, field: &str) -> Result<String, Error> {
+    params
+        .get(field)
+        .ok_or_else(|| Error {
+            code: StatusCode::BAD_REQUEST,
+            message: format!("Missing query parameter: {field}"),
+            source: "fetch_parameter".to_string(),
+        })
+        .cloned()
 }
 
 fn get_content_color_class(task: &Task) -> String {
