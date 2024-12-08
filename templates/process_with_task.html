@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
      
-<span class="{{content_color_class}} is-size-5 has-text-weight-semibold">{{task.content}}</span>
+<span class="{{content_color_class}} is-size-5 has-text-weight-semibold">{{task.content|markdown}}</span>
 {% if !task.description.is_empty() %}
-  <p class="is-size-6"> {{task.description}} </p>
+  <p class="is-size-6"> {{task.description|markdown}} </p>
 {% endif %}
 
 {% if task.due.is_some() %}
