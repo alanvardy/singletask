@@ -1,11 +1,11 @@
-use std::sync::Arc;
-
 use crate::request;
 use crate::time;
 use crate::Env;
 use crate::UserState;
 use crate::{error::Error, AppState};
+use chrono_tz::Tz;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 const MAX_UNSPLASH_AGE_MIN: i64 = 1440;
 
@@ -37,13 +37,17 @@ pub struct User {
 pub async fn cached_get_random(
     app_state: &Arc<AppState>,
     user_state: &UserState,
-    timezone: &str,
+    timezone: &Tz,
     key: String,
 ) -> Result<Unsplash, Error> {
-    let datetime = user_state.unsplash_updated_at;
-    let age = time::age_in_minutes(datetime, timezone)?;
-    if user_state.unsplash.is_some() && age < MAX_UNSPLASH_AGE_MIN {
-        Ok(user_state.unsplash.clone().unwrap())
+    let updated_at = user_state.unsplash_updated_at;
+    let unsplash = user_state.unsplash.clone();
+
+    if unsplash.is_some()
+        && updated_at.is_some()
+        && time::age_in_minutes(updated_at.unwrap(), timezone)? < MAX_UNSPLASH_AGE_MIN
+    {
+        Ok(unsplash.clone().unwrap())
     } else {
         let unsplash = get_random(app_state).await?;
 
@@ -51,7 +55,7 @@ pub async fn cached_get_random(
         let mut tx = db.begin(true).await?;
         let user_state = UserState {
             unsplash: Some(unsplash.clone()),
-            unsplash_updated_at: time::now(timezone)?,
+            unsplash_updated_at: Some(time::now(timezone)?),
             ..user_state.clone()
         };
         tx.set(key.clone(), user_state)?;

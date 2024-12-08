@@ -20,6 +20,7 @@ mod request;
 mod tasks;
 mod time;
 mod unsplash;
+mod user;
 
 const UNSPLASH_API_KEY: &str = "UNSPLASH_API_KEY";
 const ENV: &str = "ENV";
@@ -41,9 +42,10 @@ enum Env {
 struct UserState {
     tasks: Vec<Task>,
     skip_task_ids: Vec<String>,
-    tasks_updated_at: DateTime<Tz>,
+    tasks_updated_at: Option<DateTime<Tz>>,
     unsplash: Option<Unsplash>,
-    unsplash_updated_at: DateTime<Tz>,
+    unsplash_updated_at: Option<DateTime<Tz>>,
+    timezone: Option<Tz>,
 }
 
 #[derive(Serialize)]

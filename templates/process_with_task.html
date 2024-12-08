@@ -22,7 +22,6 @@
     <form action="/process" method="GET">
       <input type="text" id="token" name="token" value={{token}} hidden>
       <input type="text" id="filter" name="filter" value="{{filter}}" hidden>
-      <input type="text" id="timezone" name="timezone" value="{{timezone}}" hidden>
       <input type="text" id="skip_task_id" name="skip_task_id" value="{{task.id}}" hidden>
       <div class="has-text-right">
         <input type="submit" value="Skip" class="button is-secondary is-fullwidth">
@@ -33,7 +32,6 @@
     <form action="/process" method="GET">
       <input type="text" id="token" name="token" value={{token}} hidden>
       <input type="text" id="filter" name="filter" value="{{filter}}" hidden>
-      <input type="text" id="timezone" name="timezone" value="{{timezone}}" hidden>
       <input type="text" id="complete_task_id" name="complete_task_id" value="{{task.id}}" hidden>
       <div class="has-text-right">
         <input type="submit" value="Complete" class="button is-primary is-fullwidth">

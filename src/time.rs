@@ -4,9 +4,8 @@ use chrono::{DateTime, NaiveDate, NaiveDateTime};
 use chrono_tz::Tz;
 // use regex::Regex;
 
-pub fn now(timezone: &str) -> Result<DateTime<Tz>, Error> {
-    let tz = timezone_from_str(timezone)?;
-    Ok(Utc::now().with_timezone(&tz))
+pub fn now(timezone: &Tz) -> Result<DateTime<Tz>, Error> {
+    Ok(Utc::now().with_timezone(timezone))
 }
 
 // Return today's date in format 2021-09-16
@@ -37,7 +36,7 @@ pub fn now(timezone: &str) -> Result<DateTime<Tz>, Error> {
 
 /// How far in the past a datetime is, in minutes.
 /// Postive in past, negative in future.
-pub fn age_in_minutes(datetime: DateTime<Tz>, timezone: &str) -> Result<i64, Error> {
+pub fn age_in_minutes(datetime: DateTime<Tz>, timezone: &Tz) -> Result<i64, Error> {
     let num_minutes = -datetime.signed_duration_since(now(timezone)?).num_minutes();
     Ok(num_minutes)
 }
@@ -60,9 +59,9 @@ pub fn age_in_minutes(datetime: DateTime<Tz>, timezone: &str) -> Result<i64, Err
 // }
 
 /// Parse DateTime
-pub fn datetime_from_str(str: &str, timezone: Tz) -> Result<DateTime<Tz>, Error> {
+pub fn datetime_from_str(str: &str, timezone: &Tz) -> Result<DateTime<Tz>, Error> {
     match str.len() {
-        19 => parse_datetime_from_19(str, timezone),
+        19 => parse_datetime_from_19(str, *timezone),
         20 => parse_datetime_from_20(str),
         _ => Err(error::new(
             "datetime_from_str",
@@ -114,15 +113,15 @@ fn parse_gmt_to_timezone(gmt: &str) -> Result<Tz, Error> {
 }
 
 /// Parse Date
-pub fn date_from_str(str: &str, timezone: Tz) -> Result<NaiveDate, Error> {
+pub fn date_from_str(str: &str, timezone: &Tz) -> Result<NaiveDate, Error> {
     let date = match str.len() {
         10 => NaiveDate::parse_from_str(str, "%Y-%m-%d")?,
         19 => NaiveDateTime::parse_from_str(str, "%Y-%m-%dT%H:%M:%S")?
-            .and_local_timezone(timezone)
+            .and_local_timezone(*timezone)
             .unwrap()
             .date_naive(),
         20 => NaiveDateTime::parse_from_str(str, "%Y-%m-%dT%H:%M:%SZ")?
-            .and_local_timezone(timezone)
+            .and_local_timezone(*timezone)
             .unwrap()
             .date_naive(),
         _ => {
