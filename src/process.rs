@@ -3,11 +3,13 @@ use crate::tasks::Task;
 use crate::tasks::{self, Priority};
 use crate::unsplash;
 use crate::unsplash::Unsplash;
+use crate::user;
 use crate::{time, AppState, Link, UserState};
 use askama_axum::Template;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::{extract::Query, response::Html, routing::get, Router};
+use chrono_tz::Tz;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -25,7 +27,6 @@ struct ProcessWithTask {
     title: String,
     navigation: Vec<Link>,
     token: String,
-    timezone: String,
     content_color_class: String,
     task: Task,
     filter: String,
@@ -38,7 +39,6 @@ struct ProcessNoTask {
     title: String,
     navigation: Vec<Link>,
     token: String,
-    timezone: String,
     filter: String,
     unsplash: Unsplash,
 }
@@ -51,10 +51,10 @@ async fn process(
     let skip_task_id = params.get("skip_task_id");
     let filter = fetch_parameter(&params, "filter")?;
     let token = fetch_parameter(&params, "token")?;
-    let timezone = fetch_parameter(&params, "timezone")?;
     let key = format!("{token}{filter}");
 
-    let user_state = get_or_create_user_state(app_state.clone(), &key, &timezone).await?;
+    let user_state = get_or_create_user_state(app_state.clone(), &key).await?;
+    let timezone = user::cached_get_timezone(&app_state, &user_state, &token, &key).await?;
     let unsplash = unsplash::cached_get_random(&app_state, &user_state, &timezone, key).await?;
     let mut title = filter.clone();
     title.truncate(20);
@@ -68,7 +68,6 @@ async fn process(
                 token: token.to_owned(),
                 filter: filter.to_owned(),
                 content_color_class: get_content_color_class(task),
-                timezone: timezone.to_owned(),
                 task: task.clone(),
                 unsplash,
             };
@@ -79,7 +78,6 @@ async fn process(
                 navigation: crate::get_nav(),
                 token: token.to_owned(),
                 filter: filter.to_owned(),
-                timezone: timezone.to_owned(),
                 unsplash,
             };
             Ok(Html(index.render()?))
@@ -105,7 +103,6 @@ async fn process(
                 navigation: crate::get_nav(),
                 token: token.to_owned(),
                 filter: filter.to_owned(),
-                timezone: timezone.to_owned(),
                 content_color_class: get_content_color_class(task),
                 task: task.clone(),
                 unsplash,
@@ -117,7 +114,6 @@ async fn process(
                 navigation: crate::get_nav(),
                 token: token.to_owned(),
                 filter: filter.to_owned(),
-                timezone: timezone.to_owned(),
                 unsplash,
             };
             Ok(Html(index.render()?))
@@ -145,11 +141,7 @@ fn get_content_color_class(task: &Task) -> String {
     }
 }
 
-async fn get_or_create_user_state(
-    app_state: Arc<AppState>,
-    key: &str,
-    timezone: &str,
-) -> Result<UserState, Error> {
+async fn get_or_create_user_state(app_state: Arc<AppState>, key: &str) -> Result<UserState, Error> {
     let db = &app_state.clone().db;
     let maybe_user_state = db.begin(false).await?.get(key.to_string())?;
 
@@ -159,9 +151,10 @@ async fn get_or_create_user_state(
         Ok(UserState {
             tasks: Vec::new(),
             skip_task_ids: Vec::new(),
-            tasks_updated_at: time::now(timezone)?,
+            tasks_updated_at: None,
             unsplash: None,
-            unsplash_updated_at: time::now(timezone)?,
+            unsplash_updated_at: None,
+            timezone: None,
         })
     }
 }
@@ -170,13 +163,13 @@ async fn get_tasks(
     app_state: Arc<AppState>,
     token: &str,
     filter: &str,
-    timezone: &str,
+    timezone: &Tz,
     complete_task_id: Option<&str>,
     skip_task_id: Option<&String>,
 ) -> Result<Vec<Task>, Error> {
     let key = format!("{token}{filter}");
 
-    let user_state = get_or_create_user_state(app_state.clone(), &key, timezone).await?;
+    let user_state = get_or_create_user_state(app_state.clone(), &key).await?;
     let skip_task_ids = if let Some(task_id) = skip_task_id {
         vec![task_id.to_string()]
     } else {
@@ -210,7 +203,7 @@ async fn get_tasks(
             let user_state = UserState {
                 tasks: tasks.clone(),
                 skip_task_ids,
-                tasks_updated_at,
+                tasks_updated_at: Some(tasks_updated_at),
                 ..user_state.clone()
             };
             tx.set(key.clone(), user_state)?;
@@ -233,11 +226,13 @@ fn merge_skip_task_ids(user_state: &UserState, skip_task_id: Option<&String>) ->
 
 fn determine_freshness(
     user_state: UserState,
-    timezone: &str,
+    timezone: &Tz,
     complete_task_id: Option<&str>,
     skip_task_ids: &[String],
 ) -> Result<CacheResult, Error> {
-    if time::age_in_minutes(user_state.tasks_updated_at, timezone)? < CACHE_TASKS_MAX_AGE_MINUTES
+    let updated_at = user_state.tasks_updated_at;
+    if updated_at.is_some()
+        && time::age_in_minutes(updated_at.unwrap(), timezone)? < CACHE_TASKS_MAX_AGE_MINUTES
         && more_tasks(&user_state, complete_task_id, skip_task_ids)
     {
         Ok(CacheResult::Hit(user_state))

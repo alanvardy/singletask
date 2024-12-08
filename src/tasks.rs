@@ -32,7 +32,7 @@ pub async fn complete_task(token: &str, task_id: &str) -> Result<String, Error> 
     // Does not pass back a task
     Ok(String::from("✓"))
 }
-pub async fn all_tasks(token: &str, filter: &str, timezone: &str) -> Result<Vec<Task>, Error> {
+pub async fn all_tasks(token: &str, filter: &str, timezone: &Tz) -> Result<Vec<Task>, Error> {
     let tasks = tasks_for_filter(token, filter).await?;
 
     Ok(sort_by_datetime(tasks, timezone))
@@ -47,7 +47,7 @@ pub async fn tasks_for_filter(token: &str, filter: &str) -> Result<Vec<Task>, Er
     rest_json_to_tasks(json)
 }
 
-pub fn sort_by_datetime(mut tasks: Vec<Task>, timezone: &str) -> Vec<Task> {
+pub fn sort_by_datetime(mut tasks: Vec<Task>, timezone: &Tz) -> Vec<Task> {
     tasks.sort_by_key(|i| i.datetime(timezone));
     tasks
 }
@@ -112,7 +112,7 @@ impl Display for Priority {
 
 impl Task {
     /// Return the value of the due field
-    fn datetime(&self, timezone: &str) -> Option<DateTime<Tz>> {
+    fn datetime(&self, timezone: &Tz) -> Option<DateTime<Tz>> {
         match self.datetimeinfo(timezone) {
             Ok(DateTimeInfo::DateTime { datetime, .. }) => Some(datetime),
             Ok(DateTimeInfo::Date { date, .. }) => {
@@ -130,15 +130,7 @@ impl Task {
         }
     }
     /// Converts the JSON date representation into Date or Datetime
-    fn datetimeinfo(&self, timezone: &str) -> Result<DateTimeInfo, Error> {
-        let tz = match self.clone().due {
-            None => time::timezone_from_str(timezone)?,
-            Some(DateInfo { timezone: None, .. }) => time::timezone_from_str(timezone)?,
-            Some(DateInfo {
-                timezone: Some(tz_string),
-                ..
-            }) => time::timezone_from_str(&tz_string)?,
-        };
+    fn datetimeinfo(&self, timezone: &Tz) -> Result<DateTimeInfo, Error> {
         match self.clone().due {
             None => Ok(DateTimeInfo::NoDateTime),
             Some(DateInfo {
@@ -147,7 +139,7 @@ impl Task {
                 string,
                 ..
             }) if date.len() == 10 => Ok(DateTimeInfo::Date {
-                date: time::date_from_str(&date, tz)?,
+                date: time::date_from_str(&date, timezone)?,
                 is_recurring,
                 string,
             }),
@@ -157,7 +149,7 @@ impl Task {
                 string,
                 ..
             }) => Ok(DateTimeInfo::DateTime {
-                datetime: time::datetime_from_str(&date, tz)?,
+                datetime: time::datetime_from_str(&date, timezone)?,
                 is_recurring,
                 string,
             }),
