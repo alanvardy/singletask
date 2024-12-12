@@ -177,40 +177,37 @@ async fn get_tasks(
     };
 
     let db = &app_state.clone().db;
-    match determine_freshness(user_state, timezone, complete_task_id, &skip_task_ids)? {
-        CacheResult::Hit(user_state) => {
-            println!("CACHE HIT");
-            let skip_task_ids = merge_skip_task_ids(&user_state, skip_task_id);
-            let tasks =
-                filter_completed_task(user_state.tasks.clone(), complete_task_id, &skip_task_ids);
-            let mut tx = db.begin(true).await?;
-            let user_state = UserState {
-                tasks: tasks.clone(),
-                skip_task_ids,
-                ..user_state
-            };
-            tx.set(key.clone(), user_state)?;
-            tx.commit()?;
+    if has_cached_tasks(&user_state, timezone, complete_task_id, &skip_task_ids)? {
+        println!("CACHE HIT");
+        let skip_task_ids = merge_skip_task_ids(&user_state, skip_task_id);
+        let tasks =
+            filter_completed_task(user_state.tasks.clone(), complete_task_id, &skip_task_ids);
+        let mut tx = db.begin(true).await?;
+        let user_state = UserState {
+            tasks: tasks.clone(),
+            skip_task_ids,
+            ..user_state
+        };
+        tx.set(key.clone(), user_state)?;
+        tx.commit()?;
 
-            Ok(tasks)
-        }
-        CacheResult::Expired(user_state) => {
-            println!("CACHE EXPIRED OR NO TASKS");
-            let tasks = tasks::all_tasks(token, filter, timezone).await?;
-            let tasks = filter_completed_task(tasks, complete_task_id, &skip_task_ids);
-            let mut tx = db.begin(true).await?;
-            let tasks_updated_at = time::now(timezone)?;
-            let user_state = UserState {
-                tasks: tasks.clone(),
-                skip_task_ids,
-                tasks_updated_at: Some(tasks_updated_at),
-                ..user_state.clone()
-            };
-            tx.set(key.clone(), user_state)?;
-            tx.commit()?;
+        Ok(tasks)
+    } else {
+        println!("CACHE EXPIRED OR NO TASKS");
+        let tasks = tasks::all_tasks(token, filter, timezone).await?;
+        let tasks = filter_completed_task(tasks, complete_task_id, &skip_task_ids);
+        let mut tx = db.begin(true).await?;
+        let tasks_updated_at = time::now(timezone)?;
+        let user_state = UserState {
+            tasks: tasks.clone(),
+            skip_task_ids,
+            tasks_updated_at: Some(tasks_updated_at),
+            ..user_state.clone()
+        };
+        tx.set(key.clone(), user_state)?;
+        tx.commit()?;
 
-            Ok(tasks)
-        }
+        Ok(tasks)
     }
 }
 
@@ -224,21 +221,21 @@ fn merge_skip_task_ids(user_state: &UserState, skip_task_id: Option<&String>) ->
     }
 }
 
-fn determine_freshness(
-    user_state: UserState,
+fn has_cached_tasks(
+    user_state: &UserState,
     timezone: &Tz,
     complete_task_id: Option<&str>,
     skip_task_ids: &[String],
-) -> Result<CacheResult, Error> {
-    let updated_at = user_state.tasks_updated_at;
-    if updated_at.is_some()
-        && time::age_in_minutes(updated_at.unwrap(), timezone)? < CACHE_TASKS_MAX_AGE_MINUTES
-        && more_tasks(&user_state, complete_task_id, skip_task_ids)
-    {
-        Ok(CacheResult::Hit(user_state))
-    } else {
-        Ok(CacheResult::Expired(user_state))
+) -> Result<bool, Error> {
+    if let Some(updated_at) = user_state.tasks_updated_at {
+        let age = time::age_in_minutes(updated_at, timezone)?;
+        let more_tasks = more_tasks(user_state, complete_task_id, skip_task_ids);
+
+        if age < CACHE_TASKS_MAX_AGE_MINUTES && more_tasks {
+            return Ok(true);
+        }
     }
+    Ok(false)
 }
 
 fn filter_completed_task(
@@ -256,11 +253,4 @@ fn filter_completed_task(
 fn more_tasks(state: &UserState, complete_task_id: Option<&str>, skip_task_ids: &[String]) -> bool {
     let tasks = filter_completed_task(state.tasks.clone(), complete_task_id, skip_task_ids);
     !tasks.is_empty()
-}
-
-enum CacheResult {
-    /// We have data but it is old or there are no tasks remaining
-    Expired(UserState),
-    // We have recent data
-    Hit(UserState),
 }
