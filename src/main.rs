@@ -124,6 +124,7 @@ mod tests {
         let text = "Would you like to use another filter?";
 
         let response = server.get(url).await;
+        dbg!(response.text());
         assert!(response.text().contains(text))
     }
 }
