@@ -19,7 +19,7 @@
 </p>
 <div class="columns">
 	<div class="column is-half">
-    <form action="/process" method="GET">
+    <form action="/process" method="GET" id="skipform">
       <input type="text" id="token" name="token" value={{token}} hidden>
       <input type="text" id="filter" name="filter" value="{{filter}}" hidden>
       <input type="text" id="skip_task_id" name="skip_task_id" value="{{task.id}}" hidden>
@@ -29,7 +29,7 @@
     </form>
   </div>
 	<div class="column is-half">
-    <form action="/process" method="GET">
+    <form action="/process" method="GET" id="completeform">
       <input type="text" id="token" name="token" value={{token}} hidden>
       <input type="text" id="filter" name="filter" value="{{filter}}" hidden>
       <input type="text" id="complete_task_id" name="complete_task_id" value="{{task.id}}" hidden>
@@ -40,3 +40,4 @@
   </div>
 </div>
 {% endblock %}
+
