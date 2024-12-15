@@ -1,6 +1,6 @@
 use crate::error::{self, Error};
 use chrono::offset::Utc;
-use chrono::{DateTime, NaiveDate, NaiveDateTime};
+use chrono::DateTime;
 use chrono_tz::Tz;
 // use regex::Regex;
 
@@ -58,32 +58,6 @@ pub fn age_in_minutes(datetime: DateTime<Tz>, timezone: &Tz) -> Result<i64, Erro
 //     }
 // }
 
-/// Parse DateTime
-pub fn datetime_from_str(str: &str, timezone: &Tz) -> Result<DateTime<Tz>, Error> {
-    match str.len() {
-        19 => parse_datetime_from_19(str, *timezone),
-        20 => parse_datetime_from_20(str),
-        _ => Err(error::new(
-            "datetime_from_str",
-            "cannot parse DateTime: {str}",
-        )),
-    }
-}
-
-pub fn parse_datetime_from_19(str: &str, timezone: Tz) -> Result<DateTime<Tz>, Error> {
-    let tz = NaiveDateTime::parse_from_str(str, "%Y-%m-%dT%H:%M:%S")?
-        .and_local_timezone(timezone)
-        .unwrap();
-    Ok(tz)
-}
-
-pub fn parse_datetime_from_20(str: &str) -> Result<DateTime<Tz>, Error> {
-    let tz = NaiveDateTime::parse_from_str(str, "%Y-%m-%dT%H:%M:%SZ")?
-        .and_local_timezone(Tz::UTC)
-        .unwrap();
-    Ok(tz)
-}
-
 pub fn timezone_from_str(timezone: &str) -> Result<Tz, Error> {
     match timezone.parse::<Tz>() {
         Ok(tz) => Ok(tz),
@@ -110,29 +84,6 @@ fn parse_gmt_to_timezone(gmt: &str) -> Result<Tz, Error> {
         } + &offset_num.abs().to_string()
     );
     tz_string.parse().map_err(Error::from)
-}
-
-/// Parse Date
-pub fn date_from_str(str: &str, timezone: &Tz) -> Result<NaiveDate, Error> {
-    let date = match str.len() {
-        10 => NaiveDate::parse_from_str(str, "%Y-%m-%d")?,
-        19 => NaiveDateTime::parse_from_str(str, "%Y-%m-%dT%H:%M:%S")?
-            .and_local_timezone(*timezone)
-            .unwrap()
-            .date_naive(),
-        20 => NaiveDateTime::parse_from_str(str, "%Y-%m-%dT%H:%M:%SZ")?
-            .and_local_timezone(*timezone)
-            .unwrap()
-            .date_naive(),
-        _ => {
-            return Err(error::new(
-                "date_from_str",
-                "cannot parse NaiveDate, unknown length: {str}",
-            ))
-        }
-    };
-
-    Ok(date)
 }
 
 // Checks if string is a date in format YYYY-MM-DD

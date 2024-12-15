@@ -1,0 +1,39 @@
+ .background-image {
+   background-image: url('{{unsplash.urls.regular}}');
+   background-size: cover;
+   background-position: center;
+   background-repeat: no-repeat;
+   height: 100vh;
+   /* Adjust the height as needed */
+ }
+
+ .bottom-right {
+   position: absolute;
+   bottom: 1.5rem;
+   right: 1.5rem;
+ }
+
+ @media (min-width: 768px) {
+   .is-half {
+     width: 50%;
+   }
+
+   .is-centered {
+     display: flex;
+     justify-content: center;
+   }
+ }
+
+ .svg {
+   fill: white;
+ }
+
+ @media (max-width: 768px) {
+   .full-width-mobile {
+     width: 100%;
+   }
+ }
+
+ .has-text-white>p>a {
+   color: white !important;
+ }

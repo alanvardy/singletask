@@ -26,6 +26,7 @@ uuid = { version = "1.11", features = ["serde", "v4"] }
 regex = "1.11.1"
 echodb = "0.7.0"
 strum = { version = "0.26.3", features = ["derive", "strum_macros"] }
+futures = "0.3.31"
 
 [dev-dependencies]
 cargo-watch = "8.5.3"

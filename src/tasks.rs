@@ -1,13 +1,14 @@
 use crate::error::Error;
 use crate::request;
-use crate::time;
 use chrono::DateTime;
 use chrono::NaiveDate;
 use chrono_tz::Tz;
+use futures::future::join_all;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fmt::Display;
 use tokio::task::JoinHandle;
+use urlencoding::encode;
 use uuid::Uuid;
 
 const SYNC_URL: &str = "/sync/v9/sync";
@@ -32,25 +33,29 @@ pub async fn complete_task(token: &str, task_id: &str) -> Result<String, Error> 
     // Does not pass back a task
     Ok(String::from("✓"))
 }
-pub async fn all_tasks(token: &str, filter: &str, timezone: &Tz) -> Result<Vec<Task>, Error> {
-    let tasks = tasks_for_filter(token, filter).await?;
+pub async fn all_tasks(token: &str, filter: &str) -> Result<Vec<Task>, Error> {
+    let filters = filter.split(",").collect::<Vec<&str>>();
 
-    Ok(sort_by_datetime(tasks, timezone))
+    let mut handles = Vec::new();
+    for f in filters {
+        handles.push(tasks_for_filter(token, f));
+    }
+
+    let mut tasks = Vec::new();
+    for list_of_tasks in join_all(handles).await {
+        tasks.extend(list_of_tasks?);
+    }
+
+    Ok(tasks)
 }
 
 pub async fn tasks_for_filter(token: &str, filter: &str) -> Result<Vec<Task>, Error> {
-    use urlencoding::encode;
-
     let encoded = encode(filter);
     let url = format!("{REST_V2_TASKS_URL}?filter={encoded}");
     let json = request::get_todoist_rest(token, &url).await?;
     rest_json_to_tasks(json)
 }
 
-pub fn sort_by_datetime(mut tasks: Vec<Task>, timezone: &Tz) -> Vec<Task> {
-    tasks.sort_by_key(|i| i.datetime(timezone));
-    tasks
-}
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct Duration {
     pub amount: u32,
@@ -110,52 +115,6 @@ impl Display for Priority {
     }
 }
 
-impl Task {
-    /// Return the value of the due field
-    fn datetime(&self, timezone: &Tz) -> Option<DateTime<Tz>> {
-        match self.datetimeinfo(timezone) {
-            Ok(DateTimeInfo::DateTime { datetime, .. }) => Some(datetime),
-            Ok(DateTimeInfo::Date { date, .. }) => {
-                let naive_datetime = date.and_hms_opt(23, 59, 00)?;
-
-                let now = time::now(timezone).ok()?;
-
-                Some(DateTime::from_naive_utc_and_offset(
-                    naive_datetime,
-                    *now.offset(),
-                ))
-            }
-            Ok(DateTimeInfo::NoDateTime) => None,
-            Err(_) => None,
-        }
-    }
-    /// Converts the JSON date representation into Date or Datetime
-    fn datetimeinfo(&self, timezone: &Tz) -> Result<DateTimeInfo, Error> {
-        match self.clone().due {
-            None => Ok(DateTimeInfo::NoDateTime),
-            Some(DateInfo {
-                date,
-                is_recurring,
-                string,
-                ..
-            }) if date.len() == 10 => Ok(DateTimeInfo::Date {
-                date: time::date_from_str(&date, timezone)?,
-                is_recurring,
-                string,
-            }),
-            Some(DateInfo {
-                date,
-                is_recurring,
-                string,
-                ..
-            }) => Ok(DateTimeInfo::DateTime {
-                datetime: time::datetime_from_str(&date, timezone)?,
-                is_recurring,
-                string,
-            }),
-        }
-    }
-}
 pub fn rest_json_to_tasks(json: String) -> Result<Vec<Task>, Error> {
     let tasks: Vec<Task> = serde_json::from_str(&json)?;
     Ok(tasks)

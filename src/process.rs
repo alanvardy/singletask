@@ -60,16 +60,7 @@ async fn process(
     title.truncate(20);
 
     if !has_complete_task_id {
-        let tasks = get_tasks(
-            app_state,
-            user_state,
-            &token,
-            &filter,
-            &timezone,
-            None,
-            skip_task_id,
-        )
-        .await;
+        let tasks = get_tasks(app_state, &token, &filter, &timezone, None, skip_task_id).await;
         if let Some(task) = tasks?.first() {
             let index = ProcessWithTask {
                 title,
@@ -97,7 +88,6 @@ async fn process(
         let handle = tasks::spawn_complete_task(&token, &complete_task_id);
         let tasks = get_tasks(
             app_state,
-            user_state,
             &token,
             &filter,
             &timezone,
@@ -171,7 +161,6 @@ async fn get_or_create_user_state(app_state: Arc<AppState>, key: &str) -> Result
 
 async fn get_tasks(
     app_state: Arc<AppState>,
-    user_state: UserState,
     token: &str,
     filter: &str,
     timezone: &Tz,
@@ -180,6 +169,7 @@ async fn get_tasks(
 ) -> Result<Vec<Task>, Error> {
     let key = format!("{token}{filter}");
 
+    let user_state = get_or_create_user_state(app_state.clone(), &key).await?;
     let skip_task_ids = if let Some(task_id) = skip_task_id {
         vec![task_id.to_string()]
     } else {
@@ -204,7 +194,7 @@ async fn get_tasks(
         Ok(tasks)
     } else {
         println!("CACHE EXPIRED OR NO TASKS");
-        let tasks = tasks::all_tasks(token, filter, timezone).await?;
+        let tasks = tasks::all_tasks(token, filter).await?;
         let tasks = filter_completed_task(tasks, complete_task_id, &skip_task_ids);
         let mut tx = db.begin(true).await?;
         let tasks_updated_at = time::now(timezone)?;

@@ -11,7 +11,6 @@ const UNSPLASH_URL: &str = "https://api.unsplash.com/photos/random?query=nature"
 const ACCEPT_VERSION: &str = "Accept-Version";
 const UNSPLASH_VERSION: &str = "v1";
 
-// Combine get and post into one function
 /// Get Todoist via REST api
 pub async fn get_todoist_rest(token: &str, url: &str) -> Result<String, Error> {
     let request_url = format!("{TODOIST_URL}{url}");
