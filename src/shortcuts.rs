@@ -9,23 +9,25 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 pub fn routes(app_state: Arc<AppState>) -> Router {
-    Router::new().route("/", get(home)).with_state(app_state)
+    Router::new()
+        .route("/shortcuts", get(shortcuts))
+        .with_state(app_state)
 }
 
 #[derive(Template)]
-#[template(path = "index.html")]
-struct IndexTemplate {
+#[template(path = "shortcuts.html")]
+struct ShortcutsTemplate {
     title: String,
     navigation: Vec<Link>,
     unsplash: Unsplash,
 }
 
-async fn home(
+async fn shortcuts(
     State(_app_state): State<Arc<AppState>>,
     Query(_params): Query<HashMap<String, String>>,
 ) -> Result<Html<String>, Error> {
-    let index = IndexTemplate {
-        title: "SingleTask".into(),
+    let index = ShortcutsTemplate {
+        title: "Keyboard Shortcuts".into(),
         navigation: crate::get_nav(),
         unsplash: unsplash::stub(),
     };

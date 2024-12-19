@@ -17,6 +17,7 @@ mod error;
 mod index;
 mod process;
 mod request;
+mod shortcuts;
 mod tasks;
 mod time;
 mod unsplash;
@@ -58,6 +59,7 @@ fn routes(app_state: Arc<AppState>) -> Router {
     Router::new()
         // Routes
         .merge(index::routes(app_state.clone()))
+        .merge(shortcuts::routes(app_state.clone()))
         .merge(process::routes(app_state))
 }
 
@@ -82,10 +84,16 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
 }
 
 fn get_nav() -> Vec<Link> {
-    vec![Link {
-        href: "/".into(),
-        name: "SingleTask".into(),
-    }]
+    vec![
+        Link {
+            href: "/".into(),
+            name: "SingleTask".into(),
+        },
+        Link {
+            href: "/shortcuts".into(),
+            name: "Keyboard Shortcuts".into(),
+        },
+    ]
 }
 
 #[cfg(test)]

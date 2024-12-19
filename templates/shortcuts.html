@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+      <h1 class="title">{{ title }}</h1>
+      <p>
+        Use these keyboard shortcuts to process your tasks smoothly.
+      </p>
+
+<div class="container is-centered">
+      <table class="table is-striped is-hoverable">
+        <thead>
+            <tr>
+                <th>Action</th>
+                <th>Key</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Complete task</td>
+                <td>C</td>
+            </tr>
+            <tr>
+                <td>Skip task</td>
+                <td>S</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+     
+{% endblock %}
