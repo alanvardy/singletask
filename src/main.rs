@@ -14,14 +14,12 @@ use tracing::Level;
 use unsplash::Unsplash;
 
 mod error;
-mod index;
-mod process;
 mod request;
-mod shortcuts;
 mod tasks;
 mod time;
 mod unsplash;
 mod user;
+mod views;
 
 const UNSPLASH_API_KEY: &str = "UNSPLASH_API_KEY";
 const ENV: &str = "ENV";
@@ -58,9 +56,9 @@ struct Link {
 fn routes(app_state: Arc<AppState>) -> Router {
     Router::new()
         // Routes
-        .merge(index::routes(app_state.clone()))
-        .merge(shortcuts::routes(app_state.clone()))
-        .merge(process::routes(app_state))
+        .merge(views::index::routes(app_state.clone()))
+        .merge(views::shortcuts::routes(app_state.clone()))
+        .merge(views::process::routes(app_state))
 }
 
 #[shuttle_runtime::main]
