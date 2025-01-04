@@ -1,2 +1,2 @@
 #!/bin/bash
-cargo update && ./test.sh 
+cargo update && ./scripts/test.sh 
