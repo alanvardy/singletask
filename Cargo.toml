@@ -30,4 +30,4 @@ futures = "0.3.31"
 
 [dev-dependencies]
 cargo-watch = "8.5.3"
-axum-test = "16.4.0"
+axum-test = "17.2.0"
