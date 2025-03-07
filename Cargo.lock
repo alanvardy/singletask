@@ -1042,9 +1042,9 @@ checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 
 [[package]]
 name = "echodb"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d1eccc44ff21b80ca7e883ff57423a12610965a33637d5d0bef4adebcd81749"
+checksum = "39bf0518aa6636bdbcdbecb62642ef00d4f5505d211b20e686edbe885d5025b7"
 dependencies = [
  "arc-swap",
  "imbl",
