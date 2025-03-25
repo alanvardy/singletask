@@ -18,7 +18,7 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"]}
 tower-http = { version = "0.6.1", features = ["trace"] }
 urlencoding = "2.1.3"
 chrono = "0.4.40"
-chrono-tz = "0.10.1"
+chrono-tz = "0.10.3"
 reqwest = { version = "0.12", features = ["json"] }
 serde_repr = "0.1.20"
 colored = "3"
