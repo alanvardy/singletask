@@ -5,7 +5,7 @@ use crate::unsplash;
 use crate::unsplash::Unsplash;
 use crate::user;
 use crate::{time, AppState, Link, UserState};
-use askama_axum::Template;
+use askama::Template;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::{extract::Query, response::Html, routing::get, Router};
@@ -143,7 +143,7 @@ fn get_content_color_class(task: &Task) -> String {
 
 async fn get_or_create_user_state(app_state: Arc<AppState>, key: &str) -> Result<UserState, Error> {
     let db = &app_state.clone().db;
-    let maybe_user_state = db.begin(false).await?.get(key.to_string())?;
+    let maybe_user_state = db.begin(false).await.get(key.to_string())?;
 
     if let Some(user_state) = maybe_user_state {
         Ok(user_state)
@@ -182,7 +182,7 @@ async fn get_tasks(
         let skip_task_ids = merge_skip_task_ids(&user_state, skip_task_id);
         let tasks =
             filter_completed_task(user_state.tasks.clone(), complete_task_id, &skip_task_ids);
-        let mut tx = db.begin(true).await?;
+        let mut tx = db.begin(true).await;
         let user_state = UserState {
             tasks: tasks.clone(),
             skip_task_ids,
@@ -196,7 +196,7 @@ async fn get_tasks(
         println!("CACHE EXPIRED OR NO TASKS");
         let tasks = tasks::all_tasks(token, filter).await?;
         let tasks = filter_completed_task(tasks, complete_task_id, &skip_task_ids);
-        let mut tx = db.begin(true).await?;
+        let mut tx = db.begin(true).await;
         let tasks_updated_at = time::now(timezone)?;
         let user_state = UserState {
             tasks: tasks.clone(),

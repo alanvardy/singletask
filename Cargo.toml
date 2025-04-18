@@ -11,7 +11,7 @@ serde_json = "1.0.140"
 shuttle = "0.8.0"
 shuttle-runtime = "0.49.0"
 shuttle-axum = "0.49.0"
-askama_axum = "0.4.0"
+askama-derive-axum = "0.1"
 askama = {version = "0.12.1", features = ["markdown"]}
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"]}
@@ -24,7 +24,7 @@ serde_repr = "0.1.20"
 colored = "3"
 uuid = { version = "1.16", features = ["serde", "v4"] }
 regex = "1.11.1"
-echodb = "0.7.0"
+echodb = "0.8.0"
 strum = { version = "0.27.1", features = ["derive", "strum_macros"] }
 futures = "0.3.31"
 

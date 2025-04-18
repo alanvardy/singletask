@@ -2,7 +2,7 @@ use crate::error::Error;
 use crate::unsplash;
 use crate::unsplash::Unsplash;
 use crate::{AppState, Link};
-use askama_axum::Template;
+use askama::Template;
 use axum::extract::State;
 use axum::{extract::Query, response::Html, routing::get, Router};
 use std::collections::HashMap;

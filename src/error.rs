@@ -1,6 +1,5 @@
-use askama_axum::Response;
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
 use std::num::ParseIntError;
 use tokio::task::JoinError;
 
@@ -22,8 +21,8 @@ impl IntoResponse for Error {
     }
 }
 
-impl From<askama_axum::Error> for Error {
-    fn from(value: askama_axum::Error) -> Self {
+impl From<askama::Error> for Error {
+    fn from(value: askama::Error) -> Self {
         match value {
             askama::Error::Fmt(error) => Self {
                 source: String::from("askama_axum"),

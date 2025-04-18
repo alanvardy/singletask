@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::Router;
 use chrono::DateTime;
 use chrono_tz::Tz;
-use echodb::Db;
+use echodb::Database;
 use serde::Serialize;
 use shuttle_runtime::SecretStore;
 use std::str::FromStr;
@@ -25,7 +25,7 @@ const UNSPLASH_API_KEY: &str = "UNSPLASH_API_KEY";
 const ENV: &str = "ENV";
 
 struct AppState {
-    db: Db<String, UserState>,
+    db: Database<String, UserState>,
     unsplash_api_key: String,
     env: Env,
 }
@@ -37,7 +37,7 @@ enum Env {
     Test,
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 struct UserState {
     tasks: Vec<Task>,
     skip_task_ids: Vec<String>,
