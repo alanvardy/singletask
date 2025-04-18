@@ -39,7 +39,7 @@ pub async fn cached_get_timezone(
         let tz = time::timezone_from_str(&timezone)?;
 
         let db = &app_state.clone().db;
-        let mut tx = db.begin(true).await?;
+        let mut tx = db.begin(true).await;
         let user_state = UserState {
             timezone: Some(tz),
             ..user_state.clone()

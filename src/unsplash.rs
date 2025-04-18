@@ -52,7 +52,7 @@ pub async fn cached_get_random(
         let unsplash = get_random(app_state).await?;
 
         let db = &app_state.clone().db;
-        let mut tx = db.begin(true).await?;
+        let mut tx = db.begin(true).await;
         let user_state = UserState {
             unsplash: Some(unsplash.clone()),
             unsplash_updated_at: Some(time::now(timezone)?),
