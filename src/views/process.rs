@@ -10,6 +10,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::{extract::Query, response::Html, routing::get, Router};
 use chrono_tz::Tz;
+use comrak::Options;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -191,7 +192,7 @@ async fn get_tasks(
         tx.set(key.clone(), user_state)?;
         tx.commit()?;
 
-        Ok(tasks)
+        Ok(markdown_to_html(tasks))
     } else {
         println!("CACHE EXPIRED OR NO TASKS");
         let tasks = tasks::all_tasks(token, filter).await?;
@@ -207,8 +208,23 @@ async fn get_tasks(
         tx.set(key.clone(), user_state)?;
         tx.commit()?;
 
-        Ok(tasks)
+        Ok(markdown_to_html(tasks))
     }
+}
+
+fn markdown_to_html(tasks: Vec<Task>) -> Vec<Task> {
+    let options = Options::default();
+    tasks
+        .into_iter()
+        .map(|t| Task {
+            content: comrak::markdown_to_html(&t.content, &options),
+            description: comrak::markdown_to_html(&t.description, &options),
+            ..t
+        })
+        .collect()
+    //     use comrak::{markdown_to_html, Options};
+    // assert_eq!(markdown_to_html("Hello, **世界**!", &Options::default()),
+    //            "<p>Hello, <strong>世界</strong>!</p>\n");
 }
 
 fn merge_skip_task_ids(user_state: &UserState, skip_task_id: Option<&String>) -> Vec<String> {

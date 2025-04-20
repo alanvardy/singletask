@@ -24,9 +24,9 @@ impl IntoResponse for Error {
 impl From<askama::Error> for Error {
     fn from(value: askama::Error) -> Self {
         match value {
-            askama::Error::Fmt(error) => Self {
+            askama::Error::Fmt => Self {
                 source: String::from("askama_axum"),
-                message: format!("Formatting error {error}"),
+                message: "Unknown formatting error".to_string(),
                 code: StatusCode::INTERNAL_SERVER_ERROR,
             },
             askama::Error::Custom(error) => Self {

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
      
-<span class="{{content_color_class}} is-size-5 has-text-weight-semibold">{{task.content|markdown}}</span>
+<span class="{{content_color_class}} is-size-5 has-text-weight-semibold">{{askama::filters::MaybeSafe::Safe(task.content)}}</span>
 {% if !task.description.is_empty() %}
-  <p class="is-size-6"> {{task.description|markdown}} </p>
+  <p class="is-size-6"> {{askama::filters::MaybeSafe::Safe(task.description)}} </p>
 {% endif %}
 
 {% if task.due.is_some() %}
