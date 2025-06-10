@@ -15,30 +15,43 @@ const SYNC_URL: &str = "/sync/v9/sync";
 const REST_V2_TASKS_URL: &str = "/rest/v2/tasks/";
 
 // Completes task inside another thread
-pub fn spawn_complete_task(token: &str, task_id: &str) -> JoinHandle<Result<String, Error>> {
+pub fn spawn_complete_task(
+    token: &str,
+    task_id: &str,
+    test_server: &Option<String>,
+) -> JoinHandle<Result<String, Error>> {
     let token = token.to_owned();
     let task_id = task_id.to_owned();
-    tokio::spawn(async move { complete_task(&token, &task_id).await })
+    let test_server = test_server.clone();
+    tokio::spawn(async move { complete_task(&token, &task_id, &test_server).await })
 }
 
 /// Complete the last task returned by "next task"
-pub async fn complete_task(token: &str, task_id: &str) -> Result<String, Error> {
+pub async fn complete_task(
+    token: &str,
+    task_id: &str,
+    test_server_url: &Option<String>,
+) -> Result<String, Error> {
     let uuid = Uuid::new_v4().to_string();
 
     let body = json!({"commands": [{"type": "item_close", "uuid": uuid, "temp_id": uuid, "args": {"id": task_id}}]});
     let url = String::from(SYNC_URL);
 
-    request::post_todoist_sync(token, &url, body).await?;
+    request::post_todoist_sync(token, &url, body, test_server_url).await?;
 
     // Does not pass back a task
     Ok(String::from("✓"))
 }
-pub async fn all_tasks(token: &str, filter: &str) -> Result<Vec<Task>, Error> {
+pub async fn all_tasks(
+    token: &str,
+    filter: &str,
+    test_server_url: &Option<String>,
+) -> Result<Vec<Task>, Error> {
     let filters = filter.split(",").collect::<Vec<&str>>();
 
     let mut handles = Vec::new();
     for f in filters {
-        handles.push(tasks_for_filter(token, f));
+        handles.push(tasks_for_filter(token, f, test_server_url.clone()));
     }
 
     let mut tasks = Vec::new();
@@ -49,10 +62,14 @@ pub async fn all_tasks(token: &str, filter: &str) -> Result<Vec<Task>, Error> {
     Ok(tasks)
 }
 
-pub async fn tasks_for_filter(token: &str, filter: &str) -> Result<Vec<Task>, Error> {
+pub async fn tasks_for_filter(
+    token: &str,
+    filter: &str,
+    test_server_url: Option<String>,
+) -> Result<Vec<Task>, Error> {
     let encoded = encode(filter);
     let url = format!("{REST_V2_TASKS_URL}?filter={encoded}");
-    let json = request::get_todoist_rest(token, &url).await?;
+    let json = request::get_todoist_rest(token, &url, test_server_url).await?;
     rest_json_to_tasks(json)
 }
 

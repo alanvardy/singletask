@@ -53,15 +53,25 @@ async fn process(
     let filter = fetch_parameter(&params, "filter")?;
     let token = fetch_parameter(&params, "token")?;
     let key = format!("{token}{filter}");
-
+    let test_server_url = &app_state.clone().test_server_url;
     let user_state = get_or_create_user_state(app_state.clone(), &key).await?;
-    let timezone = user::cached_get_timezone(&app_state, &user_state, &token, &key).await?;
+    let timezone =
+        user::cached_get_timezone(&app_state, &user_state, &token, &key, test_server_url).await?;
     let unsplash = unsplash::cached_get_random(&app_state, &user_state, &timezone, key).await?;
     let mut title = filter.clone();
     title.truncate(20);
 
     if !has_complete_task_id {
-        let tasks = get_tasks(app_state, &token, &filter, &timezone, None, skip_task_id).await;
+        let tasks = get_tasks(
+            app_state,
+            &token,
+            &filter,
+            &timezone,
+            None,
+            skip_task_id,
+            test_server_url,
+        )
+        .await;
         if let Some(task) = tasks?.first() {
             let index = ProcessWithTask {
                 title,
@@ -86,7 +96,7 @@ async fn process(
     } else {
         let complete_task_id = fetch_parameter(&params, "complete_task_id")?;
 
-        let handle = tasks::spawn_complete_task(&token, &complete_task_id);
+        let handle = tasks::spawn_complete_task(&token, &complete_task_id, test_server_url);
         let tasks = get_tasks(
             app_state,
             &token,
@@ -94,6 +104,7 @@ async fn process(
             &timezone,
             Some(&complete_task_id),
             skip_task_id,
+            test_server_url,
         )
         .await;
         let _ = handle.await?;
@@ -167,6 +178,7 @@ async fn get_tasks(
     timezone: &Tz,
     complete_task_id: Option<&str>,
     skip_task_id: Option<&String>,
+    test_server_url: &Option<String>,
 ) -> Result<Vec<Task>, Error> {
     let key = format!("{token}{filter}");
 
@@ -195,7 +207,7 @@ async fn get_tasks(
         Ok(markdown_to_html(tasks))
     } else {
         println!("CACHE EXPIRED OR NO TASKS");
-        let tasks = tasks::all_tasks(token, filter).await?;
+        let tasks = tasks::all_tasks(token, filter, test_server_url).await?;
         let tasks = filter_completed_task(tasks, complete_task_id, &skip_task_ids);
         let mut tx = db.begin(true).await;
         let tasks_updated_at = time::now(timezone)?;
