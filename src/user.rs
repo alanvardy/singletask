@@ -29,13 +29,14 @@ pub async fn cached_get_timezone(
     user_state: &UserState,
     token: &str,
     key: &str,
+    test_server_url: &Option<String>,
 ) -> Result<Tz, Error> {
     if let Some(timezone) = user_state.timezone {
         Ok(timezone)
     } else {
         let User {
             tz_info: TzInfo { timezone },
-        } = get_user_data(token).await?;
+        } = get_user_data(token, test_server_url).await?;
         let tz = time::timezone_from_str(&timezone)?;
 
         let db = &app_state.clone().db;
@@ -51,10 +52,10 @@ pub async fn cached_get_timezone(
     }
 }
 
-pub async fn get_user_data(token: &str) -> Result<User, Error> {
+pub async fn get_user_data(token: &str, test_server: &Option<String>) -> Result<User, Error> {
     let url = SYNC_URL.to_string();
     let body = json!({"resource_types": ["user"], "sync_token": "*"});
-    let json = request::post_todoist_sync(token, &url, body).await?;
+    let json = request::post_todoist_sync(token, &url, body, test_server).await?;
     sync_json_to_user(json)
 }
 

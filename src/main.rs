@@ -15,6 +15,7 @@ use unsplash::Unsplash;
 
 mod error;
 mod request;
+mod responses;
 mod tasks;
 mod time;
 mod unsplash;
@@ -28,6 +29,7 @@ struct AppState {
     db: Database<String, UserState>,
     unsplash_api_key: String,
     env: Env,
+    test_server_url: Option<String>,
 }
 
 #[derive(EnumString)]
@@ -70,6 +72,7 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         db,
         unsplash_api_key,
         env: Env::from_str(&env).unwrap(),
+        test_server_url: None,
     });
 
     let router = routes(app_state).layer(
@@ -96,6 +99,8 @@ fn get_nav() -> Vec<Link> {
 
 #[cfg(test)]
 mod tests {
+    use crate::responses::ResponseFromFile;
+
     use super::*;
     use axum_test::TestServer;
 
@@ -106,6 +111,7 @@ mod tests {
             db,
             unsplash_api_key: "123".to_string(),
             env: Env::Test,
+            test_server_url: None,
         });
         let server = TestServer::new(routes(app_state)).unwrap();
 
@@ -119,17 +125,35 @@ mod tests {
     #[tokio::test]
     async fn test_process() {
         let db = echodb::new::<String, UserState>();
+        let mut server = mockito::Server::new_async().await;
+        let url = "/process?token=xxxx&filter=%23checklist&timezone=America%2FLos_Angeles";
+        let mock = server
+            .mock("POST", "/sync/v9/sync")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Sync.read().await)
+            .create_async()
+            .await;
+        let mock2 = server
+            .mock("GET", "/rest/v2/tasks/?filter=%23checklist")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(ResponseFromFile::Tasks.read().await)
+            .create_async()
+            .await;
         let app_state = Arc::new(AppState {
             db,
             unsplash_api_key: "123".to_string(),
             env: Env::Test,
+            test_server_url: Some(server.url()),
         });
         let server = TestServer::new(routes(app_state)).unwrap();
 
-        let url = "/process?token=a5c4e1bc54e1c79aca0c7b8bf57c4ed2b99ba608&filter=%23checklist&timezone=America%2FLos_Angeles";
-        let text = "Would you like to use another filter?";
+        let text = "Change water filter under sink";
 
         let response = server.get(url).await;
-        assert!(response.text().contains(text))
+        assert!(response.text().contains(text));
+        mock.assert();
+        mock2.assert();
     }
 }

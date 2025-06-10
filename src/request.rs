@@ -12,8 +12,13 @@ const ACCEPT_VERSION: &str = "Accept-Version";
 const UNSPLASH_VERSION: &str = "v1";
 
 /// Get Todoist via REST api
-pub async fn get_todoist_rest(token: &str, url: &str) -> Result<String, Error> {
-    let request_url = format!("{TODOIST_URL}{url}");
+pub async fn get_todoist_rest(
+    token: &str,
+    url: &str,
+    test_server_url: Option<String>,
+) -> Result<String, Error> {
+    let base_url = test_server_url.unwrap_or_else(|| String::from(TODOIST_URL));
+    let request_url = format!("{base_url}{url}");
     let authorization: &str = &format!("Bearer {token}");
     let response = Client::new()
         .get(request_url.clone())
@@ -31,8 +36,12 @@ pub async fn post_todoist_sync(
     token: &str,
     url: &str,
     body: serde_json::Value,
+    test_server_url: &Option<String>,
 ) -> Result<String, Error> {
-    let request_url = format!("{TODOIST_URL}{url}");
+    let base_url = test_server_url
+        .clone()
+        .unwrap_or_else(|| String::from(TODOIST_URL));
+    let request_url = format!("{base_url}{url}");
 
     let response = Client::new()
         .post(request_url.clone())
@@ -66,6 +75,7 @@ async fn handle_response(
     body: serde_json::Value,
 ) -> Result<String, Error> {
     if response.status().is_success() {
+        println!("{method}: {url}");
         Ok(response.text().await?)
     } else {
         let json_string = response.text().await?;
