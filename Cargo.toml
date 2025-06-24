@@ -8,7 +8,7 @@ edition = "2021"
 axum = "0.8.4"
 askama = "0.14.0"
 # Shuttle
-shuttle = "0.8.0"
+shuttle = "0.8.1"
 shuttle-runtime = "0.55.0"
 shuttle-axum = "0.55.0"
 # Serde
