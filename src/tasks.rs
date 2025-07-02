@@ -128,7 +128,7 @@ impl Display for Priority {
             Priority::Medium => "Medium",
             Priority::High => "High",
         };
-        write!(f, "{}", text)
+        write!(f, "{text}")
     }
 }
 
