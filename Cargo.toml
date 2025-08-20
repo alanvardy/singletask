@@ -36,4 +36,4 @@ strum_macros = "0.27.2"
 
 [dev-dependencies]
 cargo-watch = "8.5.3"
-axum-test = "17.3.0"
+axum-test = "18.0.0"
