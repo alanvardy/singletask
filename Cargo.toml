@@ -22,7 +22,7 @@ colored = "3"
 comrak = "0.42"
 echodb = "0.8.0"
 futures = "0.3.31"
-regex = "1.11.2"
+regex = "1.11.3"
 reqwest = { version = "0.12", features = ["json"] }
 strum = { version = "0.27.2", features = ["derive", "strum_macros"] }
 tokio = {version = "1", features = ["full"]}
