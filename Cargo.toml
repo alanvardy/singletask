@@ -10,7 +10,7 @@ askama = "0.14.0"
 # Shuttle
 shuttle = "0.8.1"
 shuttle-runtime = "0.56.0"
-shuttle-axum = "0.56.0"
+shuttle-axum = "0.57.0"
 # Serde
 serde = {version = "1", features = ["derive"]}
 serde_repr = "0.1.20"
