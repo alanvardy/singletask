@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 # Axum and Askama
 axum = "0.8.8"
-askama = "0.15.1"
+askama = "0.15.2"
 # Shuttle
 shuttle = "0.8.1"
 shuttle-runtime = "0.56.0"
